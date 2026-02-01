@@ -12,7 +12,7 @@ before:
 builds:
   - id: collector
     binary: collector
-    main: ./cmd/collector
+    main: ./cmd/ndfc-collector
     targets:
       - windows_amd64_v1
       - linux_amd64_v1
@@ -24,9 +24,9 @@ builds:
       - static_build
 
 archives:
-  - id: collector
+  - id: ndfc-collector
     formats: ["zip"]
     files:
       - README.md
       - LICENSE
-      - vetr-collector.sh
+      - ndfc--collector.sh
