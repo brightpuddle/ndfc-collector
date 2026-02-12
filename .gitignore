@@ -19,3 +19,5 @@
 
 # Build dir
 dist
+__pycache__/
+*.pyc
