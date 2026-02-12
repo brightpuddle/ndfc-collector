@@ -48,7 +48,7 @@ func (a FileWriter) Add(name string, content []byte) error {
 	defer zipMux.Unlock()
 	f, err := a.zw.Create(name)
 	if err != nil {
-		return nil
+		return err
 	}
 	_, err = f.Write(content)
 	return err
