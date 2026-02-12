@@ -1,24 +1,24 @@
-# ACI vetR Collector - AI Coding Agent Instructions
+# NDFC Collector - AI Coding Agent Instructions
 
 ## Project Overview
 
-This is a Go-based data collector that queries Cisco ACI APIC controllers via REST API. It fetches configuration and operational data for health checks performed by Cisco Services. The tool produces a `aci-vetr-data.zip` file containing JSON responses from various ACI managed object classes.
+This is a Go-based data collector that queries Cisco NDFC (Nexus Dashboard Fabric Controller) via REST API. It fetches configuration and operational data for health checks performed by Cisco Services. The tool produces an `ndfc-collection-data.zip` file containing JSON responses from various NDFC API endpoints.
 
 **Key architectural components:**
 - `cmd/collector/main.go` - Entry point with batch orchestration logic
-- `pkg/aci/client.go` - HTTP client with automatic token refresh (every 480s)
-- `pkg/cli/cli.go` - API fetching with retry logic and pagination for large datasets
-- `pkg/req/reqs.json` - Embedded YAML defining ~100 ACI classes to query
+- `pkg/ndfc/client.go` - HTTP client using session-based authentication
+- `pkg/cli/cli.go` - API fetching with retry logic
+- `pkg/req/requests.go` - Request definitions with URL-based structure
 - `pkg/archive/archive.go` - Thread-safe zip writer using mutex locks
 
 ## Critical Patterns
 
 ### Request Configuration
-All API queries are defined in [pkg/req/reqs.json](pkg/req/reqs.json). This file is embedded at compile time (`//go:embed`) and parsed as YAML. Each entry specifies:
-- `class`: ACI managed object class (e.g., `fvTenant`, `fvBD`)
-- `query`: Optional query parameters (e.g., filters, subtree includes)
+All API queries are defined in [pkg/req/requests.go](pkg/req/requests.go). Each entry specifies:
+- `URL`: NDFC API endpoint path (after `/appcenter/cisco/ndfc/api/v1/`)
+- `Query`: Optional query parameters
 
-**When modifying queries:** Update `reqs.json`, then run `python make_script.py` to regenerate the `vetr-collector.sh` shell script alternative.
+**When modifying queries:** Update `requests.go`, then run `go generate ./...` to regenerate the `ndfc_collector.py` Python script alternative.
 
 ### Concurrency & Batching
 The collector processes requests in parallel batches (default: 7 concurrent requests). See [cmd/collector/main.go#L63-L79](cmd/collector/main.go#L63-L79):
@@ -35,10 +35,10 @@ for i := 0; i < len(reqs); i += args.BatchSize {
 }
 ```
 
-**Pagination:** Large datasets trigger automatic pagination ([cli.go#L109-L169](pkg/cli/cli.go#L109-L169)). When APIC returns "dataset is too big", the collector fetches data in pages (default: 1000 objects/page) and saves as separate JSON files (`class-0.json`, `class-1.json`, etc.).
+**File Naming:** NDFC responses are stored using filenames derived from the URL path. For example, `/lan-fabric/rest/control/fabrics` becomes `lan-fabric.rest.control.fabrics.json`.
 
-### Token Management
-The ACI client automatically refreshes authentication tokens when >480 seconds old ([client.go#L96-L98](pkg/aci/client.go#L96-L98)). This happens transparently during `client.Do()` calls unless `NoRefresh` modifier is used (only for login/refresh endpoints).
+### Authentication
+The NDFC client uses session-based authentication via cookies. Unlike ACI, NDFC doesn't require periodic token refresh - the session is maintained by the HTTP client's cookie jar.
 
 ### Error Handling & Retries
 Failed requests retry up to 3 times with 10-second delays ([cli.go#L67-L78](pkg/cli/cli.go#L67-L78)). Exception: "dataset is too big" errors immediately trigger pagination instead of retry.
@@ -93,9 +93,9 @@ Uses [zerolog](https://github.com/rs/zerolog) throughout. Log levels in [pkg/log
 - **Single binary:** Only one cmd entry point at `cmd/collector/`
 
 ### CLI Argument Handling
-Uses [go-arg](https://github.com/alexflint/go-arg) for structured CLI parsing. Arguments support environment variables (e.g., `ACI_URL`, `ACI_USERNAME`). Interactive prompts fill missing required values.
+Uses [go-arg](https://github.com/alexflint/go-arg) for structured CLI parsing. Arguments support environment variables (e.g., `NDFC_URL`, `NDFC_USERNAME`). Interactive prompts fill missing required values.
 
-**Important:** Passwords with quotes are escaped ([cli.go#L45](pkg/cli/cli.go#L45)): `strings.ReplaceAll(cfg.Password, "\"", "\\\"")` to handle special characters in APIC passwords.
+**Important:** Passwords with quotes are escaped: `strings.ReplaceAll(cfg.Password, "\"", "\\\"")` to handle special characters in NDFC passwords.
 
 ## External Dependencies
 
@@ -109,8 +109,8 @@ Uses [go-arg](https://github.com/alexflint/go-arg) for structured CLI parsing. A
 
 1. **Archive writes must be thread-safe:** Use `zipMux.Lock()` in [archive.go#L44](pkg/archive/archive.go#L44) since parallel goroutines write to the same zip file.
 
-2. **URL normalization:** User input is stripped of `http://` and `https://` prefixes ([args.go#L63-L64](cmd/collector/args.go#L63-L64)), then `https://` is re-added in `aci.NewClient`.
+2. **URL normalization:** User input is stripped of `http://` and `https://` prefixes, then `https://` is re-added in `ndfc.NewClient`.
 
 3. **Version injection:** The `version` variable in [main.go](cmd/collector/main.go) is set via `-ldflags` during build: `-X main.version=$TAG`.
 
-4. **Dual collection methods:** Binary collector (this codebase) and shell script (`vetr-collector.sh`) must stay in sync. Always run `make_script.py` after modifying `reqs.json`.
+4. **Dual collection methods:** Binary collector (this codebase) and Python script (`ndfc_collector.py`) must stay in sync. Always run `go generate ./...` after modifying `requests.go`.
