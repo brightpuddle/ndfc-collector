@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+set -e
+
+# Generate Python script
+echo "Generating Python collector script..."
+go generate ./...
+
+# Build release binaries
+echo "Building release binaries..."
+goreleaser release --clean

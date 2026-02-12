@@ -1,0 +1,23 @@
+# Collection files
+*.zip
+
+# log files
+*.log
+
+# coverage
+*.out
+
+# Binary
+/collector
+/collector.exe
+/ndfc-collector
+/ndfc-collector.exe
+/config.yaml
+
+# OS files
+.DS_Store
+
+# Build dir
+dist
+__pycache__/
+*.pyc
