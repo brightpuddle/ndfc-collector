@@ -1,0 +1,32 @@
+version: 2
+
+env_files:
+  github_token: ~/.config/git/brightpuddle_pat
+
+before:
+  hooks:
+    - rm -rf dist
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: collector
+    binary: collector
+    main: ./cmd/collector
+    targets:
+      - windows_amd64_v1
+      - linux_amd64_v1
+      - darwin_arm64
+    env:
+      - CGO_ENABLED=0
+    tags:
+      - netgo
+      - static_build
+
+archives:
+  - id: collector
+    formats: ["zip"]
+    files:
+      - README.md
+      - LICENSE
+      - ndfc_collector.py
