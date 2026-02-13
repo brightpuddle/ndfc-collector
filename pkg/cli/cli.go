@@ -11,7 +11,8 @@ import (
 	"ndfc-collector/pkg/ndfc"
 	"ndfc-collector/pkg/req"
 
-	"ndfc-collector/pkg/log"
+	"github.com/brightpuddle/gobits/errors"
+	"github.com/brightpuddle/gobits/log"
 
 	"github.com/tidwall/gjson"
 )
@@ -19,7 +20,7 @@ import (
 // getLogger returns a logger with fabric context if a fabric name is set.
 func getLogger(cfg config.FabricConfig) log.Logger {
 	if cfg.GetFabricName() != "" {
-		return log.WithFabric(cfg.GetFabricName())
+		return log.With().Str("fabric", cfg.GetFabricName()).Logger()
 	}
 	return log.New()
 }
@@ -33,7 +34,7 @@ func GetClient(cfg config.FabricConfig) (ndfc.Client, error) {
 		ndfc.RequestTimeout(600),
 	)
 	if err != nil {
-		return ndfc.Client{}, fmt.Errorf("failed to create NDFC client: %v", err)
+		return ndfc.Client{}, errors.WithStack(fmt.Errorf("failed to create NDFC client: %v", err))
 	}
 
 	// Get logger with fabric context
@@ -44,7 +45,9 @@ func GetClient(cfg config.FabricConfig) (ndfc.Client, error) {
 	logger.Info().Str("user", cfg.Username).Msg("NDFC username")
 	logger.Info().Msg("Authenticating to NDFC...")
 	if err := client.Login(); err != nil {
-		return ndfc.Client{}, fmt.Errorf("cannot authenticate to NDFC at %s: %v", cfg.URL, err)
+		return ndfc.Client{}, errors.WithStack(
+			fmt.Errorf("cannot authenticate to NDFC at %s: %v", cfg.URL, err),
+		)
 	}
 	return client, nil
 }
@@ -68,13 +71,18 @@ func fetchWithRetry(
 		res, err = client.Get(path, mods...)
 	}
 	if err != nil {
-		return res, fmt.Errorf("request failed for %s: %v", path, err)
+		return res, errors.WithStack(fmt.Errorf("request failed for %s: %v", path, err))
 	}
 	return res, nil
 }
 
 // Fetch fetches data via API and writes it to the provided archive.
-func Fetch(client ndfc.Client, request req.Request, arc archive.Writer, cfg config.FabricConfig) error {
+func Fetch(
+	client ndfc.Client,
+	request req.Request,
+	arc archive.Writer,
+	cfg config.FabricConfig,
+) error {
 	// Construct full path
 	fullPath := req.BaseURL + request.URL
 	startTime := time.Now()
@@ -114,17 +122,17 @@ func Fetch(client ndfc.Client, request req.Request, arc archive.Writer, cfg conf
 func urlToFilename(url string) string {
 	// Remove leading slash
 	url = strings.TrimPrefix(url, "/")
-	
+
 	// Replace slashes with dots
 	filename := strings.ReplaceAll(url, "/", ".")
-	
+
 	// Get the base name without extension
 	base := path.Base(filename)
 	if base == "." || base == "" {
 		// If no meaningful name, use the whole path
 		filename = strings.ReplaceAll(url, "/", ".")
 	}
-	
+
 	// Add .json extension
 	return filename + ".json"
 }

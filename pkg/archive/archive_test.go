@@ -3,6 +3,8 @@ package archive
 import (
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewWriter(t *testing.T) {
@@ -10,25 +12,18 @@ func TestNewWriter(t *testing.T) {
 	defer os.Remove(tmpfile)
 
 	arc, err := NewWriter(tmpfile)
-	if err != nil {
-		t.Fatalf("NewWriter() error = %v", err)
-	}
+	assert.NoError(t, err)
 
 	// Add a test file
 	testContent := []byte("test content")
 	err = arc.Add("test.json", testContent)
-	if err != nil {
-		t.Fatalf("Add() error = %v", err)
-	}
+	assert.NoError(t, err)
 
 	// Close the archive
 	err = arc.Close()
-	if err != nil {
-		t.Fatalf("Close() error = %v", err)
-	}
+	assert.NoError(t, err)
 
 	// Verify file was created
-	if _, err := os.Stat(tmpfile); os.IsNotExist(err) {
-		t.Fatal("Archive file was not created")
-	}
+	_, err = os.Stat(tmpfile)
+	assert.NoError(t, err)
 }

@@ -1,9 +1,10 @@
+// Package main is the entry point for the NDFC collector.
 package main
 
 import (
 	"ndfc-collector/pkg/config"
 
-	"github.com/alexflint/go-arg"
+	"github.com/alecthomas/kong"
 )
 
 const resultZip = "ndfc-collection-data.zip"
@@ -12,35 +13,31 @@ var version = "(dev)"
 
 // Args are command line parameters.
 type Args struct {
-	URL               string            `arg:"--url,env:NDFC_URL"           help:"NDFC hostname or IP address"`
-	Username          string            `arg:"--username,env:NDFC_USERNAME" help:"NDFC username"`
-	Password          string            `arg:"--password,env:NDFC_PASSWORD" help:"NDFC password"`
-	Output            string            `arg:"-o"                          help:"Output file"`
-	ConfigFile        string            `arg:"-c,--config"                 help:"Path to YAML configuration file"`
-	RequestRetryCount int               `arg:"--request-retry-count"       help:"Times to retry a failed request"       default:"3"`
-	RetryDelay        int               `arg:"--retry-delay"               help:"Seconds to wait before retry"          default:"10"`
-	BatchSize         int               `arg:"--batch-size"                help:"Max request to send in parallel"       default:"7"`
-	PageSize          int               `arg:"--page-size"                 help:"Object per page for large datasets"    default:"1000"`
-	Confirm           bool              `arg:"-y"                          help:"Skip confirmation"`
-	Verbose           bool              `arg:"-v,--verbose"                help:"Enable verbose (debug level) logging"`
-	Endpoint          string            `arg:"--endpoint"                  help:"Collect a single endpoint"             default:"all"`
-	Query             map[string]string `arg:"-q"                          help:"Query(s) to filter single endpoint query"`
-}
-
-// Description is the CLI description string.
-func (Args) Description() string {
-	return "NDFC collector"
-}
-
-// Version is the CLI version string.
-func (Args) Version() string {
-	return version
+	URL               string            `kong:"--url,env='NDFC_URL',help='NDFC hostname or IP address'"`
+	Username          string            `kong:"--username,env='NDFC_USERNAME',help='NDFC username'"`
+	Password          string            `kong:"--password,env='NDFC_PASSWORD',help='NDFC password'"`
+	Output            string            `kong:"-o,help='Output file'"`
+	ConfigFile        string            `kong:"-c,--config,help='Path to YAML configuration file'"`
+	RequestRetryCount int               `kong:"--request-retry-count,default='3',help='Times to retry a failed request'"`
+	RetryDelay        int               `kong:"--retry-delay,default='10',help='Seconds to wait before retry'"`
+	BatchSize         int               `kong:"--batch-size,default='7',help='Max request to send in parallel'"`
+	PageSize          int               `kong:"--page-size,default='1000',help='Object per page for large datasets'"`
+	Confirm           bool              `kong:"-y,help='Skip confirmation'"`
+	Verbose           bool              `kong:"-v,--verbose,help='Enable verbose (debug level) logging'"`
+	Endpoint          string            `kong:"--endpoint,default='all',help='Collect a single endpoint'"`
+	Query             map[string]string `kong:"-q,help='Query(s) to filter single endpoint query'"`
+	Version           bool              `kong:"--version,help='Show version'"`
 }
 
 // readArgs collects the CLI args and returns a config.Config.
 func readArgs() (*config.Config, error) {
 	args := Args{Output: resultZip}
-	arg.MustParse(&args)
+	_ = kong.Parse(&args)
+
+	if args.Version {
+		println("NDFC Collector", version)
+		return nil, nil
+	}
 
 	if args.ConfigFile != "" {
 		cfg, err := config.ParseConfig(args.ConfigFile)

@@ -8,11 +8,11 @@ import (
 	"ndfc-collector/pkg/archive"
 	"ndfc-collector/pkg/cli"
 	"ndfc-collector/pkg/config"
-	"ndfc-collector/pkg/log"
 	"ndfc-collector/pkg/ndfc"
 	"ndfc-collector/pkg/req"
 
-	"github.com/rs/zerolog"
+	"github.com/brightpuddle/gobits/log"
+
 	"golang.org/x/sync/errgroup"
 )
 
@@ -30,9 +30,9 @@ func main() {
 
 	// Set log level based on verbose flag
 	if anyVerbose(cfg) {
-		log.SetLevel(zerolog.DebugLevel)
+		log.SetLevel(log.DebugLevel)
 	} else {
-		log.SetLevel(zerolog.InfoLevel)
+		log.SetLevel(log.InfoLevel)
 	}
 
 	if len(cfg.Fabrics) > 1 {
@@ -126,7 +126,7 @@ func collectSingleFabric(fabric config.FabricConfig) error {
 	fabricName := fabric.GetFabricName()
 	outputFile := fabric.GetOutputFileName()
 
-	log := log.WithFabric(fabricName)
+	log := log.With().Str("fabric", fabricName).Logger()
 	log.Info().Msgf("Starting collection for fabric: %s", fabricName)
 
 	// Initialize NDFC HTTP client
@@ -181,7 +181,7 @@ func collectFabric(
 ) error {
 	var logger log.Logger
 	if cfg.GetFabricName() != "" {
-		logger = log.WithFabric(cfg.GetFabricName())
+		logger = log.With().Str("fabric", cfg.GetFabricName()).Logger()
 	} else {
 		logger = log.New()
 	}

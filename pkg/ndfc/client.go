@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"ndfc-collector/pkg/log"
+	"github.com/brightpuddle/gobits/log"
 
 	"github.com/tidwall/gjson"
 )
@@ -140,12 +140,12 @@ func (client *Client) Login() error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Check if there's an error in the response
 	if res.Get("error").Exists() {
 		return fmt.Errorf("authentication error: %s", res.Get("error").Str)
 	}
-	
+
 	client.LastRefresh = time.Now()
 	log.Debug().Msg("NDFC authentication successful")
 	return nil
