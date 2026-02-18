@@ -7,9 +7,9 @@ before:
     - go generate ./...
 
 builds:
-  - id: collector
-    binary: collector
-    main: ./cmd/collector
+  - id: ndfc-collector
+    binary: ndfc-collector
+    main: ./cmd/ndfc-collector
     targets:
       - windows_amd64_v1
       - linux_amd64_v1
