@@ -20,6 +20,11 @@ builds:
       - netgo
       - static_build
 
+release:
+  github:
+    owner: brightpuddle
+    name: ndfc-collector
+
 archives:
   - id: collector
     formats: ["zip"]
