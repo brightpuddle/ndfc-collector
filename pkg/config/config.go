@@ -112,10 +112,7 @@ func validateConfig(cfg *Config, requireURL bool) error {
 		// Determine the derived name (name if set, otherwise url)
 		derivedName := fabric.Name
 		if derivedName == "" {
-			derivedName = fabric.URL
-		}
-		if derivedName == "" {
-			derivedName = fmt.Sprintf("fabric-%d", i+1)
+			derivedName = strings.ReplaceAll(fabric.URL, ".", "_")
 		}
 
 		// Check for duplicate names
@@ -222,8 +219,12 @@ func (c *Config) NormalizeAndPrompt() error {
 	// Prompt once for username/password if none provided.
 	if !c.hasAnyUsername() {
 		label := c.fabricLabel(0)
-		c.Global.Username = input(fmt.Sprintf("NDFC username for %s (applies to all fabrics):", label))
-		c.Global.Password = inputPassword(fmt.Sprintf("NDFC password for %s (applies to all fabrics):", label))
+		c.Global.Username = input(
+			fmt.Sprintf("NDFC username for %s (applies to all fabrics):", label),
+		)
+		c.Global.Password = inputPassword(
+			fmt.Sprintf("NDFC password for %s (applies to all fabrics):", label),
+		)
 	}
 
 	// Apply global username to fabrics when missing.
