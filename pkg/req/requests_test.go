@@ -1,6 +1,7 @@
 package req
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,13 +12,32 @@ func TestGetRequests(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, reqs)
 
-	// Verify the expected endpoints are present
-	expectedCount := 3
-	assert.Equal(t, expectedCount, len(reqs), "GetRequests() returned %d requests, expected %d", len(reqs), expectedCount)
-
 	// Verify each request has a URL
 	for i, req := range reqs {
 		assert.NotEmpty(t, req.URL, "Request %d has empty URL", i)
+	}
+
+	// Verify root requests (no DependsOn) are present
+	var roots []Request
+	for _, r := range reqs {
+		if r.DependsOn == "" {
+			roots = append(roots, r)
+		}
+	}
+	assert.NotEmpty(t, roots, "Expected at least one root request")
+
+	// Verify dependent requests reference a URL that exists in the list
+	byURL := make(map[string]bool, len(reqs))
+	for _, r := range reqs {
+		byURL[r.URL] = true
+	}
+	for _, r := range reqs {
+		if r.DependsOn != "" {
+			assert.True(t, byURL[r.DependsOn],
+				"Request %q depends on %q which is not in the request list", r.URL, r.DependsOn)
+			assert.True(t, strings.Contains(r.URL, "{"),
+				"Dependent request %q should contain a {placeholder}", r.URL)
+		}
 	}
 }
 

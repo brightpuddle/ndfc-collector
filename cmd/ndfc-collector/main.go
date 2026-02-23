@@ -8,7 +8,6 @@ import (
 	"ndfc-collector/pkg/archive"
 	"ndfc-collector/pkg/cli"
 	"ndfc-collector/pkg/config"
-	"ndfc-collector/pkg/ndfc"
 	"ndfc-collector/pkg/req"
 
 	"github.com/brightpuddle/gobits/log"
@@ -171,42 +170,6 @@ func collectSingleFabric(fabric config.FabricConfig) error {
 
 	log.Info().Str("path", outPath).Msg("Collection complete.")
 	return collectErr
-}
-
-func collectFabric(
-	client ndfc.Client,
-	arc archive.Writer,
-	reqs []req.Request,
-	cfg config.FabricConfig,
-) error {
-	var logger log.Logger
-	if cfg.GetFabricName() != "" {
-		logger = log.With().Str("fabric", cfg.GetFabricName()).Logger()
-	} else {
-		logger = log.New()
-	}
-
-	batch := 1
-	var firstErr error
-	for i := 0; i < len(reqs); i += cfg.GetBatchSize() {
-		var g errgroup.Group
-		logger.Info().Msgf("Fetching request batch %d", batch)
-		for j := i; j < i+cfg.GetBatchSize() && j < len(reqs); j++ {
-			req := reqs[j]
-			g.Go(func() error {
-				return cli.Fetch(client, req, arc, cfg)
-			})
-		}
-		err := g.Wait()
-		if err != nil {
-			logger.Error().Err(err).Msg("Error fetching data.")
-			if firstErr == nil {
-				firstErr = err
-			}
-		}
-		batch++
-	}
-	return firstErr
 }
 
 func anyVerbose(cfg *config.Config) bool {

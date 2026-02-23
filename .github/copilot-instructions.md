@@ -10,10 +10,11 @@ endpoints.
 
 **Key architectural components:**
 
-- `cmd/collector/main.go` - Entry point with batch orchestration logic
+- `cmd/ndfc-collector/main.go` - Entry point and CLI argument handling
+- `cmd/ndfc-collector/collect.go` - Dependency-aware collection engine
 - `pkg/ndfc/client.go` - HTTP client using session-based authentication
-- `pkg/cli/cli.go` - API fetching with retry logic
-- `pkg/req/requests.go` - Request definitions with URL-based structure
+- `pkg/cli/cli.go` - API fetching with retry logic (`Fetch` and `FetchResult`)
+- `pkg/req/requests.go` - Request definitions with dependency relationships
 - `pkg/archive/archive.go` - Thread-safe zip writer using mutex locks
 
 ## Critical Patterns
@@ -23,33 +24,56 @@ endpoints.
 All API queries are defined in [pkg/req/requests.go](pkg/req/requests.go). Each
 entry specifies:
 
-- `URL`: NDFC API endpoint path (after `/appcenter/cisco/ndfc/api/v1/`)
-- `Query`: Optional query parameters
+- `URL`: NDFC API endpoint path (after `/appcenter/cisco/ndfc/api/v1/`). May
+  contain `{placeholder}` names for dependent queries.
+- `Query`: Optional query parameters.
+- `DependsOn`: URL template of a parent request. When set, this request is
+  executed once per item in the parent's response array, with `{placeholder}`
+  names in the URL substituted from matching JSON field names in each item.
+
+Example of a dependent request:
+
+```go
+{
+    URL:       "/lan-fabric/rest/control/fabrics/{fabricName}/inventory/switchesByFabric",
+    DependsOn: "/lan-fabric/rest/control/fabrics",
+}
+```
+
+This produces one request per fabric returned by the `/fabrics` endpoint,
+e.g. `…/fabrics/MyFabric/inventory/switchesByFabric`.
 
 **When modifying queries:** Update `requests.go`, then run `go generate ./...`
 to regenerate the `ndfc_collector.py` Python script alternative.
 
 ### Concurrency & Batching
 
-The collector processes requests in parallel batches (default: 7 concurrent
-requests). See [cmd/collector/main.go#L63-L79](cmd/collector/main.go#L63-L79):
+The collector groups requests into topological dependency levels
+(`cmd/ndfc-collector/collect.go`). Within each level all expanded requests are
+batched and run in parallel (default: 7 concurrent requests) using
+`errgroup.Group`, preserving the original homegrown batching approach:
 
 ```go
-for i := 0; i < len(reqs); i += args.BatchSize {
+for i := 0; i < len(expanded); i += batchSize {
     var g errgroup.Group
-    // Launch batch of requests in parallel
-    for j := i; j < i+args.BatchSize && j < len(reqs); j++ {
+    for _, er := range expanded[i:end] {
+        er := er
         g.Go(func() error {
-            return cli.Fetch(client, req, arc, cfg)
+            res, err := cli.FetchResult(client, fetchReq, arc, cfg)
+            ...
         })
     }
-    err = g.Wait()
+    g.Wait()
 }
 ```
 
-**File Naming:** NDFC responses are stored using filenames derived from the URL
-path. For example, `/lan-fabric/rest/control/fabrics` becomes
-`lan-fabric.rest.control.fabrics.json`.
+Dependent requests are only expanded after their parent level has completed,
+so ordering is guaranteed automatically.
+
+**File Naming:** NDFC responses are stored using filenames derived from the
+resolved URL path (placeholders already substituted). For example,
+`/lan-fabric/rest/control/fabrics/MyFabric/inventory/switchesByFabric` becomes
+`lan-fabric.rest.control.fabrics.MyFabric.inventory.switchesByFabric.json`.
 
 ### Authentication
 
@@ -60,8 +84,8 @@ client's cookie jar.
 ### Error Handling & Retries
 
 Failed requests retry up to 3 times with 10-second delays
-([cli.go#L67-L78](pkg/cli/cli.go#L67-L78)). Exception: "dataset is too big"
-errors immediately trigger pagination instead of retry.
+([cli.go](pkg/cli/cli.go)). If a parent request fails, its children are
+silently skipped (no parent results → no expanded child requests).
 
 ## Development Workflow
 
@@ -69,10 +93,13 @@ errors immediately trigger pagination instead of retry.
 
 ```bash
 # Run from source
-go run ./cmd/collector/*.go
+go run ./cmd/ndfc-collector/*.go
 
-# Run tests (uses gock for HTTP mocking)
+# Run tests
 go test ./...
+
+# Generate Python script (run after modifying requests.go)
+go generate ./...
 
 # Build release binaries (requires goreleaser)
 ./scripts/release
@@ -82,7 +109,7 @@ go test ./...
 
 1. Tag version: `git tag v1.2.3`
 2. Run `./scripts/release` - this:
-   - Runs `python make_script.py` to generate `vetr-collector.sh`
+   - Runs `go generate ./...` to generate `ndfc_collector.py`
    - Builds cross-platform binaries via goreleaser
    - Packages with README and LICENSE into zip archives
 
@@ -91,25 +118,15 @@ for macOS). CGO is disabled for static binaries.
 
 ### Testing Patterns
 
-Tests use [gock](https://github.com/h2non/gock) to mock HTTP responses. See
-[pkg/aci/client_test.go](pkg/aci/client_test.go):
-
-```go
-func testClient() Client {
-    client, _ := NewClient(testHost, "usr", "pwd")
-    gock.InterceptClient(client.HTTPClient)
-    return client
-}
-```
-
-Always call `defer gock.Off()` to clean up mocks after tests.
+New collection logic tests live in
+`cmd/ndfc-collector/collect_test.go` and test pure functions directly
+(`substituteURL`, `mergeCtx`, `buildLevels`, `expandLevel`).
 
 ## Project-Specific Conventions
 
 ### Logging
 
-Uses [zerolog](https://github.com/rs/zerolog) throughout. Log levels in
-[pkg/log/log.go](pkg/log/log.go):
+Uses [zerolog](https://github.com/rs/zerolog) throughout. Log levels:
 
 - `log.Info()` - User-facing progress messages
 - `log.Debug()` - Timing/diagnostic info (start/end times)
@@ -121,11 +138,11 @@ Uses [zerolog](https://github.com/rs/zerolog) throughout. Log levels in
 - **Packages are thin:** Each `pkg/` subdirectory has 2-4 files
   (implementation + tests)
 - **No internal pkg:** All packages are directly under `pkg/`
-- **Single binary:** Only one cmd entry point at `cmd/collector/`
+- **Single binary:** Only one cmd entry point at `cmd/ndfc-collector/`
 
 ### CLI Argument Handling
 
-Uses [go-arg](https://github.com/alexflint/go-arg) for structured CLI parsing.
+Uses [kong](https://github.com/alecthomas/kong) for structured CLI parsing.
 Arguments support environment variables (e.g., `NDFC_URL`, `NDFC_USERNAME`).
 Interactive prompts fill missing required values.
 
@@ -138,23 +155,27 @@ NDFC passwords.
 - **tidwall/gjson & sjson** - Fast JSON parsing/building without struct
   marshaling
 - **golang.org/x/sync/errgroup** - Parallel error handling for batched requests
-- **alexflint/go-arg** - CLI argument parsing with struct tags
+- **alecthomas/kong** - CLI argument parsing with struct tags
 - **rs/zerolog** - Structured logging
-- **h2non/gock** - HTTP mocking for tests
 
 ## Common Gotchas
 
-1. **Archive writes must be thread-safe:** Use `zipMux.Lock()` in
-   [archive.go#L44](pkg/archive/archive.go#L44) since parallel goroutines write
-   to the same zip file.
+1. **Archive writes must be thread-safe:** `archive.FileWriter.Add` uses
+   `zipMux.Lock()` since parallel goroutines write to the same zip file.
 
 2. **URL normalization:** User input is stripped of `http://` and `https://`
    prefixes, then `https://` is re-added in `ndfc.NewClient`.
 
 3. **Version injection:** The `version` variable in
-   [main.go](cmd/collector/main.go) is set via `-ldflags` during build:
+   `cmd/ndfc-collector/main.go` is set via `-ldflags` during build:
    `-X main.version=$TAG`.
 
 4. **Dual collection methods:** Binary collector (this codebase) and Python
    script (`ndfc_collector.py`) must stay in sync. Always run
    `go generate ./...` after modifying `requests.go`.
+
+5. **Dependent request expansion:** If a parent request returns no results
+   (empty array or failed), its child requests produce no expanded requests and
+   are silently skipped. This is intentional — if `/fabrics` fails there are
+   no fabric names to substitute.
+
