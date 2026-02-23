@@ -14,6 +14,7 @@ require (
 )
 
 require (
+	github.com/alitto/pond/v2 v2.6.2 // indirect
 	github.com/cockroachdb/errors v1.12.0 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
