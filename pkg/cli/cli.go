@@ -76,13 +76,13 @@ func fetchWithRetry(
 	return res, nil
 }
 
-// Fetch fetches data via API and writes it to the provided archive.
-func Fetch(
+// FetchResult fetches data via API, writes it to the provided archive, and returns the result.
+func FetchResult(
 	client ndfc.Client,
 	request req.Request,
 	arc archive.Writer,
 	cfg config.FabricConfig,
-) error {
+) (gjson.Result, error) {
 	// Construct full path
 	fullPath := req.BaseURL + request.URL
 	startTime := time.Now()
@@ -103,18 +103,28 @@ func Fetch(
 
 	res, err := fetchWithRetry(client, fullPath, cfg, mods)
 	if err != nil {
-		return err
+		return res, err
 	}
 
 	logger.Info().Msgf("%s complete", filename)
-	err = arc.Add(filename, []byte(res.Raw))
-	if err != nil {
-		return err
+	if err := arc.Add(filename, []byte(res.Raw)); err != nil {
+		return res, err
 	}
 	logger.Debug().
 		TimeDiff("elapsed_time", time.Now(), startTime).
 		Msgf("done: %s", filename)
-	return nil
+	return res, nil
+}
+
+// Fetch fetches data via API and writes it to the provided archive.
+func Fetch(
+	client ndfc.Client,
+	request req.Request,
+	arc archive.Writer,
+	cfg config.FabricConfig,
+) error {
+	_, err := FetchResult(client, request, arc, cfg)
+	return err
 }
 
 // urlToFilename converts a URL path to a filename

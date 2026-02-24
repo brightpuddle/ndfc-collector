@@ -31,6 +31,19 @@ The results of these queries are archived in a zip file to be shared with Cisco.
 Unlike traditional REST APIs, NDFC's API structure varies by endpoint, so each
 API response is stored as a separate JSON file named after its endpoint path.
 
+Some endpoints depend on data from other endpoints. For example, the per-fabric
+switch inventory endpoint requires a fabric name:
+
+```
+/lan-fabric/rest/control/fabrics/{fabricName}/inventory/switchesByFabric
+```
+
+The collector automatically handles these **dependent queries**: it first
+fetches the parent endpoint (e.g. `/fabrics`), then issues one child request per
+item in the parent's response array, substituting `{fabricName}` (and any other
+`{placeholder}` names) from the corresponding JSON fields. Child requests run in
+parallel within their dependency level, so there is no unnecessary serialisation.
+
 The following file can be referenced to see the API queries performed by this
 tool:
 
@@ -239,19 +252,19 @@ This tool is written in Go and uses the following key libraries:
 - **tidwall/gjson & sjson** - Fast JSON parsing/building without struct
   marshaling
 - **golang.org/x/sync/errgroup** - Parallel error handling for batched requests
-- **alexflint/go-arg** - CLI argument parsing with struct tags
+- **alecthomas/kong** - CLI argument parsing with struct tags
 - **rs/zerolog** - Structured logging
 - **gopkg.in/yaml.v3** - YAML configuration file parsing
 
 The code is organized as follows:
 
 - `cmd/ndfc-collector/` - Main entry point and CLI argument handling
+- `cmd/ndfc-collector/collect.go` - Dependency-aware collection engine
 - `pkg/ndfc/` - NDFC API client with authentication
-- `pkg/cli/` - Request fetching logic with retry
+- `pkg/cli/` - Request fetching logic with retry (`Fetch` and `FetchResult`)
 - `pkg/archive/` - Thread-safe zip file writer
-- `pkg/req/` - Request definitions
+- `pkg/req/` - Request definitions (including dependent query relationships)
 - `pkg/config/` - YAML configuration file handling
-- `pkg/log/` - Logging wrapper
 
 ## Development
 
@@ -259,12 +272,12 @@ The code is organized as follows:
 
 ```bash
 # Build binary
-go build -o collector ./cmd/collector/*.go
+go build -o collector ./cmd/ndfc-collector/*.go
 
 # Run tests
 go test ./...
 
-# Generate Python script
+# Generate Python script (run after modifying requests.go)
 go generate ./...
 ```
 
