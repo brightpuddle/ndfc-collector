@@ -40,9 +40,12 @@ switch inventory endpoint requires a fabric name:
 
 The collector automatically handles these **dependent queries**: it first
 fetches the parent endpoint (e.g. `/fabrics`), then issues one child request per
-item in the parent's response array, substituting `{fabricName}` (and any other
-`{placeholder}` names) from the corresponding JSON fields. Child requests run in
-parallel within their dependency level, so there is no unnecessary serialisation.
+item in the parent's response array. Each `{placeholder}` in the child URL is
+resolved using the `Dependency.Key` JSON field from the parent response item.
+This explicit key mapping allows the placeholder name in the URL to differ from
+the JSON field name in the parent response (e.g. `{fabricName}` resolved from
+a `"name"` field). Child requests run in parallel within their dependency level,
+so there is no unnecessary serialisation.
 
 The following file can be referenced to see the API queries performed by this
 tool:

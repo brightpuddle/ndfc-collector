@@ -20,21 +20,25 @@ func TestGetRequests(t *testing.T) {
 	// Verify root requests (no DependsOn) are present
 	var roots []Request
 	for _, r := range reqs {
-		if r.DependsOn == "" {
+		if len(r.DependsOn) == 0 {
 			roots = append(roots, r)
 		}
 	}
 	assert.NotEmpty(t, roots, "Expected at least one root request")
 
-	// Verify dependent requests reference a URL that exists in the list
+	// Verify dependent requests reference URLs that exist in the list
 	byURL := make(map[string]bool, len(reqs))
 	for _, r := range reqs {
 		byURL[r.URL] = true
 	}
 	for _, r := range reqs {
-		if r.DependsOn != "" {
-			assert.True(t, byURL[r.DependsOn],
-				"Request %q depends on %q which is not in the request list", r.URL, r.DependsOn)
+		if len(r.DependsOn) > 0 {
+			for placeholder, dep := range r.DependsOn {
+				assert.True(t, byURL[dep.URL],
+					"Request %q placeholder %q depends on %q which is not in the request list", r.URL, placeholder, dep.URL)
+				assert.NotEmpty(t, dep.Key,
+					"Request %q placeholder %q has empty Key", r.URL, placeholder)
+			}
 			assert.True(t, strings.Contains(r.URL, "{"),
 				"Dependent request %q should contain a {placeholder}", r.URL)
 		}

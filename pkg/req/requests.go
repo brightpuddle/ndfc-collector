@@ -8,26 +8,36 @@ import "ndfc-collector/pkg/ndfc"
 // Mod modifies an ndfc Request
 type Mod = func(*ndfc.Req)
 
+// Dependency describes how one URL placeholder is resolved from a parent request.
+// URL is the template URL of the parent request; Key is the JSON field name in
+// each parent response item whose value should be substituted for the placeholder.
+type Dependency struct {
+	URL string // URL template of the parent request
+	Key string // JSON field name in the parent response item
+}
+
 // Request is an HTTP request.
 type Request struct {
-	URL       string            // API endpoint URL (after /appcenter/cisco/ndfc/api/v1/, may contain {placeholder} patterns)
-	Query     map[string]string // Query parameters
-	DependsOn string            // URL template of parent request (empty if no dependency); {placeholder} names in URL are resolved from each parent response item
+	URL       string                 // API endpoint URL (after /appcenter/cisco/ndfc/api/v1/, may contain {placeholder} patterns)
+	Query     map[string]string      // Query parameters
+	DependsOn map[string]Dependency  // maps each URL {placeholder} name to the parent request and JSON key that supplies its value
 }
 
 const BaseURL = "/appcenter/cisco/ndfc/api/v1"
 
 // Requests contains all the NDFC API requests to execute.
-// Requests with DependsOn are executed after their parent completes;
-// one request is issued per item in the parent's response array,
-// with {placeholder} names substituted from matching JSON fields.
+// Requests with a non-empty DependsOn are executed after their parent(s) complete;
+// one request is issued per item in the parent's response array, with each
+// {placeholder} substituted using the Dependency's Key field from that item.
 var Requests = []Request{
 	{URL: "/lan-fabric/rest/control/fabrics"},
 	{URL: "/fm/about/version"},
 	{URL: "/lan-fabric/rest/control/switches/overview"},
 	{
-		URL:       "/lan-fabric/rest/control/fabrics/{fabricName}/inventory/switchesByFabric",
-		DependsOn: "/lan-fabric/rest/control/fabrics",
+		URL: "/lan-fabric/rest/control/fabrics/{fabricName}/inventory/switchesByFabric",
+		DependsOn: map[string]Dependency{
+			"fabricName": {URL: "/lan-fabric/rest/control/fabrics", Key: "fabricName"},
+		},
 	},
 }
 

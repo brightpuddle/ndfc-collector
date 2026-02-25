@@ -18,15 +18,16 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 BASE_URL = "/appcenter/cisco/ndfc/api/v1"
 
-# Request definitions: (url_template, depends_on)
-# url_template may contain {placeholder} names that are resolved from parent
-# response items whose JSON field name matches the placeholder.
+# REQUESTS is a list of (url_template, depends_on) tuples.
+# url_template may contain {placeholder} names substituted at runtime.
+# depends_on is None for root requests, or a dict mapping each placeholder
+# name to {"url": <parent_url_template>, "key": <json_field_name>}.
 # Generated from pkg/req/requests.go - do not edit the list below manually.
 REQUESTS = [
     ("/lan-fabric/rest/control/fabrics", None),
     ("/fm/about/version", None),
     ("/lan-fabric/rest/control/switches/overview", None),
-    ("/lan-fabric/rest/control/fabrics/{fabricName}/inventory/switchesByFabric", "/lan-fabric/rest/control/fabrics"),
+    ("/lan-fabric/rest/control/fabrics/{fabricName}/inventory/switchesByFabric", {"fabricName": {"url": "/lan-fabric/rest/control/fabrics", "key": "fabricName"}}),
 ]
 
 class NDFCClient:
@@ -78,13 +79,17 @@ def substitute_url(template, context):
     return re.sub(r'\{([^}]+)\}', replace, template)
 
 
-def item_to_context(item, parent_ctx=None):
-    """Extract top-level scalar fields from a JSON object into a context dict."""
+def extract_ctx(item, parent_ctx, key_mappings):
+    """Build a context from parent_ctx, adding values extracted from item using key_mappings.
+
+    key_mappings is a dict of {placeholder: json_key}. Only explicitly mapped
+    keys are added; unmapped fields in item are ignored.
+    """
     ctx = dict(parent_ctx or {})
     if isinstance(item, dict):
-        for key, value in item.items():
-            if not isinstance(value, (dict, list)):
-                ctx[key] = str(value)
+        for placeholder, key in key_mappings.items():
+            if key in item and not isinstance(item[key], (dict, list)):
+                ctx[placeholder] = str(item[key])
     return ctx
 
 
@@ -100,7 +105,9 @@ def build_levels(request_defs):
         if dep is None:
             depth[url] = 0
         else:
-            depth[url] = calc_depth(dep) + 1
+            parent_urls = {d['url'] for d in dep.values()}
+            max_parent = max(calc_depth(pu) for pu in parent_urls)
+            depth[url] = max_parent + 1
         return depth[url]
 
     for url, _ in request_defs:
@@ -111,6 +118,16 @@ def build_levels(request_defs):
     for url, dep in request_defs:
         levels[depth[url]].append((url, dep))
     return levels
+
+
+def _cartesian(groups):
+    """Return the Cartesian product of a list of lists."""
+    if not groups:
+        yield []
+        return
+    for item in groups[0]:
+        for rest in _cartesian(groups[1:]):
+            yield [item] + rest
 
 
 def collect_data(client):
@@ -134,23 +151,40 @@ def collect_data(client):
                 else:
                     print(f"  \u2717 {filename} failed")
             else:
-                parent_results = results.get(depends_on, [])
+                # depends_on: {placeholder: {"url": ..., "key": ...}}
+                # Group by parent URL so we know which keys to extract.
+                by_parent_url = {}
+                for placeholder, dep in depends_on.items():
+                    parent_url = dep['url']
+                    key = dep['key']
+                    by_parent_url.setdefault(parent_url, {})[placeholder] = key
+
+                # For each parent URL build a list of context dicts (one per item).
+                groups = []
+                for parent_url, key_mappings in by_parent_url.items():
+                    ctxs = []
+                    for parent_ctx, parent_data in results.get(parent_url, []):
+                        items = parent_data if isinstance(parent_data, list) else [parent_data]
+                        for item in items:
+                            ctxs.append(extract_ctx(item, parent_ctx, key_mappings))
+                    groups.append(ctxs)
+
                 level_results = []
-                for parent_ctx, parent_data in parent_results:
-                    items = parent_data if isinstance(parent_data, list) else [parent_data]
-                    for item in items:
-                        ctx = item_to_context(item, parent_ctx)
-                        resolved_url = substitute_url(url_template, ctx)
-                        full_url = BASE_URL + resolved_url
-                        filename = url_to_filename(resolved_url)
-                        print(f"Fetching {filename}...")
-                        result = client.get(full_url)
-                        if result is not None:
-                            data[filename] = result
-                            level_results.append((ctx, result))
-                            print(f"  \u2713 {filename} complete")
-                        else:
-                            print(f"  \u2717 {filename} failed")
+                for combo in _cartesian(groups):
+                    merged_ctx = {}
+                    for ctx in combo:
+                        merged_ctx.update(ctx)
+                    resolved_url = substitute_url(url_template, merged_ctx)
+                    full_url = BASE_URL + resolved_url
+                    filename = url_to_filename(resolved_url)
+                    print(f"Fetching {filename}...")
+                    result = client.get(full_url)
+                    if result is not None:
+                        data[filename] = result
+                        level_results.append((merged_ctx, result))
+                        print(f"  \u2713 {filename} complete")
+                    else:
+                        print(f"  \u2717 {filename} failed")
                 if level_results:
                     results[url_template] = level_results
 
