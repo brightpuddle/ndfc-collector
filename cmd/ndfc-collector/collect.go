@@ -43,20 +43,39 @@ func substituteURL(url string, ctx map[string]string) string {
 	})
 }
 
-// mergeCtx returns a new context containing all entries from parent merged with
-// all top-level scalar fields from item (item values take precedence).
-func mergeCtx(parent map[string]string, item gjson.Result) map[string]string {
-	ctx := make(map[string]string, len(parent))
+// extractCtx returns a new context containing all entries from parent merged
+// with values extracted from item using the provided key-to-placeholder
+// mappings (item values take precedence; only explicitly mapped keys are added).
+func extractCtx(parent map[string]string, item gjson.Result, keyMappings map[string]string) map[string]string {
+	ctx := make(map[string]string, len(parent)+len(keyMappings))
 	for k, v := range parent {
 		ctx[k] = v
 	}
-	item.ForEach(func(key, value gjson.Result) bool {
-		if value.Type != gjson.JSON {
-			ctx[key.String()] = value.String()
+	for placeholder, key := range keyMappings {
+		if val := item.Get(key); val.Exists() && val.Type != gjson.JSON {
+			ctx[placeholder] = val.String()
 		}
-		return true
-	})
+	}
 	return ctx
+}
+
+// cartesianCtx returns the Cartesian product of multiple slices of context maps.
+// Each result is a slice containing one element from each input group.
+func cartesianCtx(groups [][]map[string]string) [][]map[string]string {
+	if len(groups) == 0 {
+		return [][]map[string]string{{}}
+	}
+	rest := cartesianCtx(groups[1:])
+	var result [][]map[string]string
+	for _, item := range groups[0] {
+		for _, r := range rest {
+			combo := make([]map[string]string, 0, len(groups))
+			combo = append(combo, item)
+			combo = append(combo, r...)
+			result = append(result, combo)
+		}
+	}
+	return result
 }
 
 // buildLevels groups requests into topological depth levels so that
@@ -74,11 +93,17 @@ func buildLevels(reqs []req.Request) [][]req.Request {
 			return d
 		}
 		r, ok := byURL[url]
-		if !ok || r.DependsOn == "" {
+		if !ok || len(r.DependsOn) == 0 {
 			depth[url] = 0
 			return 0
 		}
-		d := calcDepth(r.DependsOn) + 1
+		maxParentDepth := 0
+		for _, dep := range r.DependsOn {
+			if d := calcDepth(dep.URL); d > maxParentDepth {
+				maxParentDepth = d
+			}
+		}
+		d := maxParentDepth + 1
 		depth[url] = d
 		return d
 	}
@@ -100,7 +125,11 @@ func buildLevels(reqs []req.Request) [][]req.Request {
 
 // expandLevel produces a resolved request for every combination of parent
 // result items and child request templates at the given level.
-// Root requests (DependsOn == "") produce exactly one resolved request each.
+// Root requests (empty DependsOn) produce exactly one resolved request each.
+// For dependent requests, each placeholder in DependsOn is resolved from the
+// specified parent URL's response items using the mapped Key field name.
+// When placeholders reference multiple parent URLs the combinations are
+// expanded as a Cartesian product.
 func expandLevel(
 	levelReqs []req.Request,
 	allParentResults map[string][]parentResult,
@@ -108,7 +137,7 @@ func expandLevel(
 	var expanded []resolvedReq
 
 	for _, r := range levelReqs {
-		if r.DependsOn == "" {
+		if len(r.DependsOn) == 0 {
 			expanded = append(expanded, resolvedReq{
 				template: r,
 				url:      r.URL,
@@ -117,23 +146,52 @@ func expandLevel(
 			continue
 		}
 
-		for _, parent := range allParentResults[r.DependsOn] {
-			expand := func(item gjson.Result) {
-				ctx := mergeCtx(parent.ctx, item)
-				expanded = append(expanded, resolvedReq{
-					template: r,
-					url:      substituteURL(r.URL, ctx),
-					ctx:      ctx,
-				})
+		// Group dependency entries by parent URL so we know which keys to
+		// extract from each parent's response items.
+		// byParentURL: parentURL -> {placeholder -> jsonKey}
+		byParentURL := make(map[string]map[string]string)
+		for placeholder, dep := range r.DependsOn {
+			if byParentURL[dep.URL] == nil {
+				byParentURL[dep.URL] = make(map[string]string)
 			}
-			if parent.result.IsArray() {
-				parent.result.ForEach(func(_, item gjson.Result) bool {
-					expand(item)
-					return true
-				})
-			} else if parent.result.IsObject() {
-				expand(parent.result)
+			byParentURL[dep.URL][placeholder] = dep.Key
+		}
+
+		// For each parent URL, expand its results into individual context maps
+		// (one per response item) with the parent's accumulated ctx merged in.
+		var groups [][]map[string]string
+		for parentURL, keyMappings := range byParentURL {
+			var ctxSets []map[string]string
+			for _, pr := range allParentResults[parentURL] {
+				process := func(item gjson.Result) {
+					ctxSets = append(ctxSets, extractCtx(pr.ctx, item, keyMappings))
+				}
+				if pr.result.IsArray() {
+					pr.result.ForEach(func(_, item gjson.Result) bool {
+						process(item)
+						return true
+					})
+				} else if pr.result.IsObject() {
+					process(pr.result)
+				}
 			}
+			groups = append(groups, ctxSets)
+		}
+
+		// Expand the Cartesian product of all parent groups and emit one
+		// resolved request per combination.
+		for _, combo := range cartesianCtx(groups) {
+			mergedCtx := make(map[string]string)
+			for _, ctx := range combo {
+				for k, v := range ctx {
+					mergedCtx[k] = v
+				}
+			}
+			expanded = append(expanded, resolvedReq{
+				template: r,
+				url:      substituteURL(r.URL, mergedCtx),
+				ctx:      mergedCtx,
+			})
 		}
 	}
 
