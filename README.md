@@ -14,10 +14,8 @@ This tool performs data collection for NDFC health checks. The tool can be run
 from any computer with network access to the NDFC controller.
 
 Once the collection is complete, the tool will create an
-`ndfc-collection-data.zip` file in single-fabric mode. In multi-fabric mode, the
-tool produces one zip per fabric and an aggregate `ndfc-collection.zip` that
-contains all fabric archives. These files should be provided to the Cisco
-Services engineer for further analysis.
+`ndfc-collection-data.zip` file that should be provided to the Cisco Services
+engineer for further analysis.
 
 The tool also creates a log file that can be reviewed and/or provided to Cisco
 to troubleshoot any issues with the collection process. Note that this file will
@@ -89,66 +87,40 @@ information. Use the `--help` option to see this output from the CLI.
 remainder of the options exist to work around uncommon connectivity challenges,
 e.g. a long RTT or slow response from NDFC.
 
-### Single Fabric Mode (CLI)
-
-The traditional CLI mode allows collecting from a single fabric:
+### CLI
 
 ```bash
 ./ndfc-collector --url 10.1.1.1 --username admin --password cisco123
 ```
 
-### Multi-Fabric Mode (Config File)
+### Config File
 
-For collecting from multiple fabrics in parallel, use a YAML configuration file:
+All options can also be provided via a YAML configuration file:
 
 ```bash
-./ndfc-collector --config fabrics.yaml
+./ndfc-collector --config collector.yaml
 ```
 
 Example configuration file:
 
 ```yaml
-global:
-  username: admin
-  password: cisco123
-  confirm: true
-
-fabrics:
-  - name: production
-    url: 10.1.1.1
-  - name: staging
-    url: 10.2.2.2
-    username: staging-user
-    password: staging-pass
-  - name: development
-    url: 10.3.3.3
+url: 10.1.1.1
+username: admin
+password: cisco123
+confirm: true
 ```
 
 For a fully documented example with comments for every option, see
 [config-example.yaml](config-example.yaml).
 
-### Config File Features
+### Supported Settings
 
-- **Parallel Collection**: All fabrics are collected simultaneously using
-  goroutines
-- **Global Settings**: Define common settings once in the `global` section
-- **Per-Fabric Overrides**: Override any global setting per fabric
-- **Flexible Naming**:
-  - If `name` is specified, output is `{name}.zip`
-  - If no `name`, output is `{url}.zip`
-- **Aggregate Archive**: After collecting all fabrics, the tool creates
-  `ndfc-collection.zip` containing all per-fabric zip files
-- **Fabric Context in Logs**: Each log message includes the fabric name for easy
-  tracking
-- **Validation**: Ensures fabric names/URLs are unique and required fields are
-  present
+All CLI parameters are also supported in the config file:
 
-### Supported Global/Fabric Settings
-
-All CLI parameters can be used in the config file:
-
+- `url` - NDFC hostname or IP address
 - `username` - NDFC username
 - `password` - NDFC password
+- `output` - Output zip file name (default: ndfc-collection-data.zip)
 - `request_retry_count` - Times to retry failed requests (default: 3)
 - `retry_delay` - Seconds to wait before retry (default: 10)
 - `batch_size` - Max parallel requests (default: 7)
@@ -158,23 +130,18 @@ All CLI parameters can be used in the config file:
 - `endpoint` - Collect single endpoint (default: all)
 - `query` - Query filters for single endpoint
 
-**Note**: `url` must be specified per fabric and is not supported as a global
-setting.
-
 ### Verbose Logging
 
 Enable debug-level logging for detailed progress:
 
 ```bash
-# Single fabric mode
 ./ndfc-collector --url 10.1.1.1 --username admin --password cisco123 --verbose
+```
 
-# Multi-fabric mode
-./ndfc-collector --config fabrics.yaml --verbose
+Or set in config file:
 
-# Or set in config file
-global:
-  verbose: true
+```yaml
+verbose: true
 ```
 
 Debug logging shows:

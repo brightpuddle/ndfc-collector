@@ -200,20 +200,15 @@ func expandLevel(
 
 // collectFabric executes all requests in topological dependency order.
 // Within each dependency level the expanded requests are batched and run
-// in parallel (up to cfg.GetBatchSize() concurrent requests), preserving the
+// in parallel (up to cfg.BatchSize concurrent requests), preserving the
 // original homegrown batching behaviour.
 func collectFabric(
 	client ndfc.Client,
 	arc archive.Writer,
 	reqs []req.Request,
-	cfg config.FabricConfig,
+	cfg *config.Config,
 ) error {
-	var logger log.Logger
-	if cfg.GetFabricName() != "" {
-		logger = log.With().Str("fabric", cfg.GetFabricName()).Logger()
-	} else {
-		logger = log.New()
-	}
+	logger := log.New()
 
 	levels := buildLevels(reqs)
 
@@ -239,7 +234,7 @@ func collectFabric(
 		var resultMu sync.Mutex
 		levelResults := make([]levelResult, 0, len(expanded))
 
-		batchSize := cfg.GetBatchSize()
+		batchSize := cfg.BatchSize
 		for i := 0; i < len(expanded); i += batchSize {
 			end := i + batchSize
 			if end > len(expanded) {

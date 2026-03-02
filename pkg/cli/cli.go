@@ -17,16 +17,8 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-// getLogger returns a logger with fabric context if a fabric name is set.
-func getLogger(cfg config.FabricConfig) log.Logger {
-	if cfg.GetFabricName() != "" {
-		return log.With().Str("fabric", cfg.GetFabricName()).Logger()
-	}
-	return log.New()
-}
-
 // GetClient creates an NDFC host client
-func GetClient(cfg config.FabricConfig) (ndfc.Client, error) {
+func GetClient(cfg *config.Config) (ndfc.Client, error) {
 	// Sanitize username against quotes
 	cfg.Password = strings.ReplaceAll(cfg.Password, "\"", "\\\"")
 	client, err := ndfc.NewClient(
@@ -37,8 +29,7 @@ func GetClient(cfg config.FabricConfig) (ndfc.Client, error) {
 		return ndfc.Client{}, errors.WithStack(fmt.Errorf("failed to create NDFC client: %v", err))
 	}
 
-	// Get logger with fabric context
-	logger := getLogger(cfg)
+	logger := log.New()
 
 	// Authenticate
 	logger.Info().Str("host", cfg.URL).Msg("NDFC host")
@@ -55,19 +46,18 @@ func GetClient(cfg config.FabricConfig) (ndfc.Client, error) {
 func fetchWithRetry(
 	client ndfc.Client,
 	path string,
-	cfg config.FabricConfig,
+	cfg *config.Config,
 	mods []func(*ndfc.Req),
 ) (gjson.Result, error) {
 	res, err := client.Get(path, mods...)
 
-	// Get logger with fabric context
-	logger := getLogger(cfg)
+	logger := log.New()
 
 	// Retry for requestRetryCount times
-	for retries := 0; err != nil && retries < cfg.GetRequestRetryCount(); retries++ {
+	for retries := 0; err != nil && retries < cfg.RequestRetryCount; retries++ {
 		logger.Warn().Err(err).Msgf("request failed for %s. Retrying after %d seconds.",
-			path, cfg.GetRetryDelay())
-		time.Sleep(time.Second * time.Duration(cfg.GetRetryDelay()))
+			path, cfg.RetryDelay)
+		time.Sleep(time.Second * time.Duration(cfg.RetryDelay))
 		res, err = client.Get(path, mods...)
 	}
 	if err != nil {
@@ -81,14 +71,13 @@ func FetchResult(
 	client ndfc.Client,
 	request req.Request,
 	arc archive.Writer,
-	cfg config.FabricConfig,
+	cfg *config.Config,
 ) (gjson.Result, error) {
 	// Construct full path
 	fullPath := req.BaseURL + request.URL
 	startTime := time.Now()
 
-	// Get logger with fabric context
-	logger := getLogger(cfg)
+	logger := log.New()
 
 	// Convert URL to filename: /lan-fabric/rest/control/fabrics -> lan-fabric.rest.control.fabrics.json
 	filename := urlToFilename(request.URL)
@@ -121,7 +110,7 @@ func Fetch(
 	client ndfc.Client,
 	request req.Request,
 	arc archive.Writer,
-	cfg config.FabricConfig,
+	cfg *config.Config,
 ) error {
 	_, err := FetchResult(client, request, arc, cfg)
 	return err

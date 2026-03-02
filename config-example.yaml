@@ -1,71 +1,45 @@
-# Example multi-fabric configuration for the NDFC collector.
+# Example configuration for the NDFC collector.
 #
-# Structure:
-# - global: default settings applied to all fabrics unless overridden
-# - fabrics: list of fabrics (each can override any global setting)
-#
-# Prompting rules:
-# - If no usernames are provided anywhere, the collector prompts once for a
-#   global username/password that applies to all fabrics.
-# - If usernames are provided, the collector prompts for passwords only once
-#   per unique username (then reuses that password across fabrics).
-# - If a URL is missing for a fabric, the collector will prompt for it.
+# All options can be provided here or via CLI flags. The CLI flags take
+# precedence over the config file.
 #
 # NOTE: Values shown below are examples. Remove or replace as needed.
 
-# Global defaults (apply to all fabrics unless overridden below).
-global:
-  # Default NDFC username. If omitted, you will be prompted.
-  username: ""
+# NDFC hostname or IP address. If omitted, you will be prompted.
+url: ""
 
-  # Default NDFC password. If omitted, you will be prompted.
-  password: ""
+# NDFC username. If omitted, you will be prompted.
+username: ""
 
-  # Retry failed requests this many times. (default: 3)
-  request_retry_count: 3
+# NDFC password. If omitted, you will be prompted.
+password: ""
 
-  # Seconds to wait before retrying a failed request. (default: 10)
-  retry_delay: 10
+# Output zip file name. (default: ndfc-collection-data.zip)
+output: "ndfc-collection-data.zip"
 
-  # Max number of concurrent API requests. (default: 7)
-  batch_size: 7
+# Retry failed requests this many times. (default: 3)
+request_retry_count: 3
 
-  # Page size for large datasets. (default: 1000)
-  page_size: 1000
+# Seconds to wait before retrying a failed request. (default: 10)
+retry_delay: 10
 
-  # Skip the "press enter to exit" prompt. (default: false)
-  confirm: false
+# Max number of concurrent API requests. (default: 7)
+batch_size: 7
 
-  # Enable debug-level logging. (default: false)
-  verbose: false
+# Page size for large datasets. (default: 1000)
+page_size: 1000
 
-  # Collect a single endpoint only. (default: all)
-  endpoint: "all"
+# Skip the "press enter to exit" prompt. (default: false)
+confirm: false
 
-  # Query filters for single-endpoint collection.
-  # Example:
-  # query:
-  #   filter: "value"
-  query: {}
+# Enable debug-level logging. (default: false)
+verbose: false
 
-# Per-fabric configuration. Each fabric can override any global setting.
-fabrics:
-  # Example fabric using defaults from global.
-  - name: "fabric-1" # Optional display name; used for output filename
-    url: "10.0.0.1" # NDFC hostname or IP address
+# Collect a single endpoint only instead of all endpoints. (default: all)
+endpoint: "all"
 
-  # Example fabric overriding username and output filename.
-  - name: "fabric-2"
-    url: "10.0.0.2"
-    username: "staging-user"
-    password: "" # If omitted, you will be prompted once per username
-    output: "fabric-2.zip" # Optional; default is "{name}.zip" or "{url}.zip"
-
-  # Example fabric overriding performance settings.
-  - name: "fabric-3"
-    url: "10.0.0.3"
-    request_retry_count: 5
-    retry_delay: 15
-    batch_size: 10
-    page_size: 2000
-    verbose: true
+# Query filters for single-endpoint collection.
+# Example:
+# query:
+#   filter: "value"
+query: {}

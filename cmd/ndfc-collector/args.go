@@ -7,8 +7,6 @@ import (
 	"github.com/alecthomas/kong"
 )
 
-const resultZip = "ndfc-collection-data.zip"
-
 var version = "(dev)"
 
 // Args are command line parameters.
@@ -31,7 +29,8 @@ type Args struct {
 
 // readArgs collects the CLI args and returns a config.Config.
 func readArgs() (*config.Config, error) {
-	args := Args{Output: resultZip}
+	defaults := config.New()
+	args := Args{Output: defaults.Output}
 	_ = kong.Parse(&args)
 
 	if args.Version {
@@ -39,44 +38,33 @@ func readArgs() (*config.Config, error) {
 		return nil, nil
 	}
 
+	var cfg *config.Config
 	if args.ConfigFile != "" {
-		cfg, err := config.ParseConfig(args.ConfigFile)
+		var err error
+		cfg, err = config.ParseConfig(args.ConfigFile)
 		if err != nil {
 			return nil, err
 		}
-		if err := cfg.NormalizeAndPrompt(); err != nil {
-			return nil, err
-		}
-		return cfg, nil
+	} else {
+		c := config.New()
+		cfg = &c
+		cfg.URL = args.URL
+		cfg.Output = args.Output
+		cfg.Username = args.Username
+		cfg.Password = args.Password
+		cfg.RequestRetryCount = args.RequestRetryCount
+		cfg.RetryDelay = args.RetryDelay
+		cfg.BatchSize = args.BatchSize
+		cfg.PageSize = args.PageSize
+		cfg.Confirm = args.Confirm
+		cfg.Verbose = args.Verbose
+		cfg.Endpoint = args.Endpoint
+		cfg.Query = args.Query
 	}
-
-	cfg := config.New()
-	requestRetryCount := args.RequestRetryCount
-	retryDelay := args.RetryDelay
-	batchSize := args.BatchSize
-	pageSize := args.PageSize
-	confirm := args.Confirm
-	verbose := args.Verbose
-
-	cfg.Global.Verbose = args.Verbose
-	cfg.Fabrics = []config.FabricConfig{{
-		URL:               args.URL,
-		Output:            args.Output,
-		Username:          args.Username,
-		Password:          args.Password,
-		RequestRetryCount: &requestRetryCount,
-		RetryDelay:        &retryDelay,
-		BatchSize:         &batchSize,
-		PageSize:          &pageSize,
-		Confirm:           &confirm,
-		Verbose:           &verbose,
-		Endpoint:          args.Endpoint,
-		Query:             args.Query,
-	}}
 
 	if err := cfg.NormalizeAndPrompt(); err != nil {
 		return nil, err
 	}
 
-	return &cfg, nil
+	return cfg, nil
 }
