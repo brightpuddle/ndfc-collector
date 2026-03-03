@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
 
-	"ndfc-collector/pkg/req"
+	"ndfc-collector/pkg/requests"
 )
 
 // --- substituteURL ---
@@ -115,7 +115,7 @@ func TestCartesianCtx_TwoGroups(t *testing.T) {
 // --- buildLevels ---
 
 func TestBuildLevels_RootsOnly(t *testing.T) {
-	reqs := []req.Request{
+	reqs := []requests.Request{
 		{URL: "/a"},
 		{URL: "/b"},
 	}
@@ -125,11 +125,11 @@ func TestBuildLevels_RootsOnly(t *testing.T) {
 }
 
 func TestBuildLevels_OneDependency(t *testing.T) {
-	reqs := []req.Request{
+	reqs := []requests.Request{
 		{URL: "/fabrics"},
 		{
 			URL: "/fabrics/{fabricName}/switches",
-			DependsOn: map[string]req.Dependency{
+			DependsOn: map[string]requests.Dependency{
 				"fabricName": {URL: "/fabrics", Key: "fabricName"},
 			},
 		},
@@ -145,17 +145,17 @@ func TestBuildLevels_OneDependency(t *testing.T) {
 }
 
 func TestBuildLevels_Chain(t *testing.T) {
-	reqs := []req.Request{
+	reqs := []requests.Request{
 		{URL: "/a"},
 		{
 			URL: "/a/{x}/b",
-			DependsOn: map[string]req.Dependency{
+			DependsOn: map[string]requests.Dependency{
 				"x": {URL: "/a", Key: "x"},
 			},
 		},
 		{
 			URL: "/a/{x}/b/{y}/c",
-			DependsOn: map[string]req.Dependency{
+			DependsOn: map[string]requests.Dependency{
 				"y": {URL: "/a/{x}/b", Key: "y"},
 			},
 		},
@@ -170,12 +170,12 @@ func TestBuildLevels_Chain(t *testing.T) {
 func TestBuildLevels_MultipleParents(t *testing.T) {
 	// A request with two placeholders sourced from two different level-0 parents
 	// should land at level 1 (max(0,0)+1).
-	reqs := []req.Request{
+	reqs := []requests.Request{
 		{URL: "/a"},
 		{URL: "/b"},
 		{
 			URL: "/c/{x}/{y}",
-			DependsOn: map[string]req.Dependency{
+			DependsOn: map[string]requests.Dependency{
 				"x": {URL: "/a", Key: "x"},
 				"y": {URL: "/b", Key: "y"},
 			},
@@ -189,17 +189,17 @@ func TestBuildLevels_MultipleParents(t *testing.T) {
 // --- expandLevel ---
 
 func TestExpandLevel_RootRequest(t *testing.T) {
-	levelReqs := []req.Request{{URL: "/fabrics"}}
+	levelReqs := []requests.Request{{URL: "/fabrics"}}
 	expanded := expandLevel(levelReqs, map[string][]parentResult{})
 	assert.Len(t, expanded, 1)
 	assert.Equal(t, "/fabrics", expanded[0].url)
 }
 
 func TestExpandLevel_DependentRequest_Array(t *testing.T) {
-	levelReqs := []req.Request{
+	levelReqs := []requests.Request{
 		{
 			URL: "/fabrics/{fabricName}/switches",
-			DependsOn: map[string]req.Dependency{
+			DependsOn: map[string]requests.Dependency{
 				"fabricName": {URL: "/fabrics", Key: "fabricName"},
 			},
 		},
@@ -224,10 +224,10 @@ func TestExpandLevel_DependentRequest_Array(t *testing.T) {
 }
 
 func TestExpandLevel_DependentRequest_Object(t *testing.T) {
-	levelReqs := []req.Request{
+	levelReqs := []requests.Request{
 		{
 			URL: "/fabrics/{fabricName}/detail",
-			DependsOn: map[string]req.Dependency{
+			DependsOn: map[string]requests.Dependency{
 				"fabricName": {URL: "/fabrics", Key: "fabricName"},
 			},
 		},
@@ -248,10 +248,10 @@ func TestExpandLevel_DependentRequest_Object(t *testing.T) {
 func TestExpandLevel_DependentRequest_ContextPropagated(t *testing.T) {
 	// Simulate level-2 expansion: /a/{x}/b/{y}/c depends on /a/{x}/b,
 	// which was itself expanded from /a with fabricName=f1.
-	levelReqs := []req.Request{
+	levelReqs := []requests.Request{
 		{
 			URL: "/fabrics/{fabricName}/switches/{serialNumber}/config",
-			DependsOn: map[string]req.Dependency{
+			DependsOn: map[string]requests.Dependency{
 				"serialNumber": {URL: "/fabrics/{fabricName}/switches", Key: "serialNumber"},
 			},
 		},
@@ -277,10 +277,10 @@ func TestExpandLevel_DependentRequest_ContextPropagated(t *testing.T) {
 
 func TestExpandLevel_NoParentResults_ProducesNothing(t *testing.T) {
 	// If the parent fetch failed (no results stored), children are skipped.
-	levelReqs := []req.Request{
+	levelReqs := []requests.Request{
 		{
 			URL: "/fabrics/{fabricName}/switches",
-			DependsOn: map[string]req.Dependency{
+			DependsOn: map[string]requests.Dependency{
 				"fabricName": {URL: "/fabrics", Key: "fabricName"},
 			},
 		},
@@ -291,10 +291,10 @@ func TestExpandLevel_NoParentResults_ProducesNothing(t *testing.T) {
 
 func TestExpandLevel_KeyRemapping(t *testing.T) {
 	// Parent returns items with "name" field, but placeholder is "fabricName".
-	levelReqs := []req.Request{
+	levelReqs := []requests.Request{
 		{
 			URL: "/fabrics/{fabricName}/switches",
-			DependsOn: map[string]req.Dependency{
+			DependsOn: map[string]requests.Dependency{
 				"fabricName": {URL: "/fabrics", Key: "name"},
 			},
 		},
@@ -320,10 +320,10 @@ func TestExpandLevel_KeyRemapping(t *testing.T) {
 
 func TestExpandLevel_MultipleParentURLs_CartesianProduct(t *testing.T) {
 	// Two placeholders sourced from two different parent URLs.
-	levelReqs := []req.Request{
+	levelReqs := []requests.Request{
 		{
 			URL: "/report/{fabricId}/{switchId}",
-			DependsOn: map[string]req.Dependency{
+			DependsOn: map[string]requests.Dependency{
 				"fabricId": {URL: "/fabrics", Key: "id"},
 				"switchId": {URL: "/switches", Key: "id"},
 			},
@@ -351,7 +351,7 @@ func TestExpandLevel_MultipleParentURLs_CartesianProduct(t *testing.T) {
 
 // helpers
 
-func urlsFromLevel(level []req.Request) []string {
+func urlsFromLevel(level []requests.Request) []string {
 	urls := make([]string, len(level))
 	for i, r := range level {
 		urls[i] = r.URL

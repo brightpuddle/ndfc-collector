@@ -9,7 +9,7 @@ import (
 	"ndfc-collector/pkg/archive"
 	"ndfc-collector/pkg/config"
 	"ndfc-collector/pkg/ndfc"
-	"ndfc-collector/pkg/req"
+	"ndfc-collector/pkg/requests"
 
 	"github.com/brightpuddle/gobits/errors"
 	"github.com/brightpuddle/gobits/log"
@@ -69,12 +69,12 @@ func fetchWithRetry(
 // FetchResult fetches data via API, writes it to the provided archive, and returns the result.
 func FetchResult(
 	client ndfc.Client,
-	request req.Request,
+	request requests.Request,
 	arc archive.Writer,
 	cfg *config.Config,
 ) (gjson.Result, error) {
 	// Construct full path
-	fullPath := req.BaseURL + request.URL
+	fullPath := requests.BaseURL + request.URL
 	startTime := time.Now()
 
 	logger := log.New()
@@ -108,7 +108,7 @@ func FetchResult(
 // Fetch fetches data via API and writes it to the provided archive.
 func Fetch(
 	client ndfc.Client,
-	request req.Request,
+	request requests.Request,
 	arc archive.Writer,
 	cfg *config.Config,
 ) error {

@@ -1,4 +1,4 @@
-package req
+package requests
 
 import (
 	"strings"
@@ -34,8 +34,14 @@ func TestGetRequests(t *testing.T) {
 	for _, r := range reqs {
 		if len(r.DependsOn) > 0 {
 			for placeholder, dep := range r.DependsOn {
-				assert.True(t, byURL[dep.URL],
-					"Request %q placeholder %q depends on %q which is not in the request list", r.URL, placeholder, dep.URL)
+				assert.True(
+					t,
+					byURL[dep.URL],
+					"Request %q placeholder %q depends on %q which is not in the request list",
+					r.URL,
+					placeholder,
+					dep.URL,
+				)
 				assert.NotEmpty(t, dep.Key,
 					"Request %q placeholder %q has empty Key", r.URL, placeholder)
 			}

@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"ndfc-collector/pkg/req"
+	"ndfc-collector/pkg/requests"
 )
 
 // pyHeader is the static top portion of the generated Python script
@@ -268,7 +268,7 @@ func main() {
 	defer f.Close()
 
 	// Get requests
-	reqs, err := req.GetRequests()
+	reqs, err := requests.GetRequests()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error getting requests: %v\n", err)
 		os.Exit(1)

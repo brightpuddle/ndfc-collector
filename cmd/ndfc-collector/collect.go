@@ -12,12 +12,12 @@ import (
 	"ndfc-collector/pkg/cli"
 	"ndfc-collector/pkg/config"
 	"ndfc-collector/pkg/ndfc"
-	"ndfc-collector/pkg/req"
+	"ndfc-collector/pkg/requests"
 )
 
 // resolvedReq is a request with all {placeholder} values substituted.
 type resolvedReq struct {
-	template req.Request       // original template (for child lookup)
+	template requests.Request  // original template (for child lookup)
 	url      string            // resolved URL (placeholders filled in)
 	ctx      map[string]string // accumulated placeholder context from ancestor items
 }
@@ -46,7 +46,11 @@ func substituteURL(url string, ctx map[string]string) string {
 // extractCtx returns a new context containing all entries from parent merged
 // with values extracted from item using the provided key-to-placeholder
 // mappings (item values take precedence; only explicitly mapped keys are added).
-func extractCtx(parent map[string]string, item gjson.Result, keyMappings map[string]string) map[string]string {
+func extractCtx(
+	parent map[string]string,
+	item gjson.Result,
+	keyMappings map[string]string,
+) map[string]string {
 	ctx := make(map[string]string, len(parent)+len(keyMappings))
 	for k, v := range parent {
 		ctx[k] = v
@@ -80,8 +84,8 @@ func cartesianCtx(groups [][]map[string]string) [][]map[string]string {
 
 // buildLevels groups requests into topological depth levels so that
 // every parent request is in a strictly earlier level than its children.
-func buildLevels(reqs []req.Request) [][]req.Request {
-	byURL := make(map[string]req.Request, len(reqs))
+func buildLevels(reqs []requests.Request) [][]requests.Request {
+	byURL := make(map[string]requests.Request, len(reqs))
 	for _, r := range reqs {
 		byURL[r.URL] = r
 	}
@@ -115,7 +119,7 @@ func buildLevels(reqs []req.Request) [][]req.Request {
 		}
 	}
 
-	levels := make([][]req.Request, maxDepth+1)
+	levels := make([][]requests.Request, maxDepth+1)
 	for _, r := range reqs {
 		d := depth[r.URL]
 		levels[d] = append(levels[d], r)
@@ -131,7 +135,7 @@ func buildLevels(reqs []req.Request) [][]req.Request {
 // When placeholders reference multiple parent URLs the combinations are
 // expanded as a Cartesian product.
 func expandLevel(
-	levelReqs []req.Request,
+	levelReqs []requests.Request,
 	allParentResults map[string][]parentResult,
 ) []resolvedReq {
 	var expanded []resolvedReq
@@ -205,7 +209,7 @@ func expandLevel(
 func collectFabric(
 	client ndfc.Client,
 	arc archive.Writer,
-	reqs []req.Request,
+	reqs []requests.Request,
 	cfg *config.Config,
 ) error {
 	logger := log.New()

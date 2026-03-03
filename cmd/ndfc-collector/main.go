@@ -7,7 +7,7 @@ import (
 
 	"ndfc-collector/pkg/archive"
 	"ndfc-collector/pkg/cli"
-	"ndfc-collector/pkg/req"
+	"ndfc-collector/pkg/requests"
 
 	"github.com/brightpuddle/gobits/log"
 )
@@ -47,14 +47,14 @@ func main() {
 	}
 
 	// Initiate requests
-	reqs, err := req.GetRequests()
+	reqs, err := requests.GetRequests()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error reading requests.")
 	}
 
 	// Allow overriding in-built queries with a single endpoint query
 	if cfg.Endpoint != "all" {
-		reqs = []req.Request{{
+		reqs = []requests.Request{{
 			URL:   cfg.Endpoint,
 			Query: cfg.Query,
 		}}

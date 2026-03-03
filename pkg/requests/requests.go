@@ -1,5 +1,5 @@
-// Package req contains the collector requests
-package req
+// Package requests contains the collector requests
+package requests
 
 //go:generate go run ../../cmd/genscript/main.go
 
@@ -18,21 +18,19 @@ type Dependency struct {
 
 // Request is an HTTP request.
 type Request struct {
-	URL       string                 // API endpoint URL (after /appcenter/cisco/ndfc/api/v1/, may contain {placeholder} patterns)
-	Query     map[string]string      // Query parameters
-	DependsOn map[string]Dependency  // maps each URL {placeholder} name to the parent request and JSON key that supplies its value
+	URL       string                // API endpoint URL (after /appcenter/cisco/ndfc/api/v1/, may contain {placeholder} patterns)
+	Query     map[string]string     // Query parameters
+	DependsOn map[string]Dependency // maps each URL {placeholder} name to the parent request and JSON key that supplies its value
 }
 
-const BaseURL = "/appcenter/cisco/ndfc/api/v1"
+const BaseURL = "/api/v1"
 
 // Requests contains all the NDFC API requests to execute.
 // Requests with a non-empty DependsOn are executed after their parent(s) complete;
 // one request is issued per item in the parent's response array, with each
 // {placeholder} substituted using the Dependency's Key field from that item.
 var Requests = []Request{
-	{URL: "/lan-fabric/rest/control/fabrics"},
-	{URL: "/fm/about/version"},
-	{URL: "/lan-fabric/rest/control/switches/overview"},
+	{URL: "/manage/inventory/switches"},
 	{
 		URL: "/lan-fabric/rest/control/fabrics/{fabricName}/inventory/switchesByFabric",
 		DependsOn: map[string]Dependency{
