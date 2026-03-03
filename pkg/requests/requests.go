@@ -31,12 +31,6 @@ const BaseURL = "/api/v1"
 // {placeholder} substituted using the Dependency's Key field from that item.
 var Requests = []Request{
 	{URL: "/manage/inventory/switches"},
-	{
-		URL: "/lan-fabric/rest/control/fabrics/{fabricName}/inventory/switchesByFabric",
-		DependsOn: map[string]Dependency{
-			"fabricName": {URL: "/lan-fabric/rest/control/fabrics", Key: "fabricName"},
-		},
-	},
 }
 
 // GetRequests returns normalized requests
