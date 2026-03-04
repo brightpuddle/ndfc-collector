@@ -17,9 +17,10 @@ import (
 
 // resolvedReq is a request with all {placeholder} values substituted.
 type resolvedReq struct {
-	template requests.Request  // original template (for child lookup)
-	url      string            // resolved URL (placeholders filled in)
-	ctx      map[string]string // accumulated placeholder context from ancestor items
+	template    requests.Request  // original template (for child lookup)
+	url         string            // resolved URL (placeholders filled in)
+	resolvedKey string            // resolved db_key (placeholders filled in)
+	ctx         map[string]string // accumulated placeholder context from ancestor items
 }
 
 // parentResult pairs the accumulated context that produced a response with that response.
@@ -143,9 +144,10 @@ func expandLevel(
 	for _, r := range levelReqs {
 		if len(r.DependsOn) == 0 {
 			expanded = append(expanded, resolvedReq{
-				template: r,
-				url:      r.URL,
-				ctx:      map[string]string{},
+				template:    r,
+				url:         r.URL,
+				resolvedKey: r.DBKey,
+				ctx:         map[string]string{},
 			})
 			continue
 		}
@@ -192,9 +194,10 @@ func expandLevel(
 				}
 			}
 			expanded = append(expanded, resolvedReq{
-				template: r,
-				url:      substituteURL(r.URL, mergedCtx),
-				ctx:      mergedCtx,
+				template:    r,
+				url:         substituteURL(r.URL, mergedCtx),
+				resolvedKey: substituteURL(r.DBKey, mergedCtx),
+				ctx:         mergedCtx,
 			})
 		}
 	}
@@ -251,6 +254,7 @@ func collectFabric(
 				g.Go(func() error {
 					fetchReq := er.template
 					fetchReq.URL = er.url
+					fetchReq.DBKey = er.resolvedKey
 
 					res, err := cli.FetchResult(client, fetchReq, arc, cfg)
 					if err != nil {

@@ -79,8 +79,13 @@ func FetchResult(
 
 	logger := log.New()
 
-	// Convert URL to filename: /lan-fabric/rest/control/fabrics -> lan-fabric.rest.control.fabrics.json
-	filename := urlToFilename(request.URL)
+	// Convert URL to filename using db_key when available for human-readable names.
+	// db_key "inventory/switches" -> "inventory.switches.json"
+	// Falls back to URL-based naming for requests without a db_key.
+	filename := dbKeyToFilename(request.DBKey)
+	if filename == "" {
+		filename = urlToFilename(request.URL)
+	}
 
 	logger.Debug().Time("start_time", startTime).Msgf("begin: %s", filename)
 	logger.Debug().Msgf("fetching %s...", filename)
@@ -114,6 +119,16 @@ func Fetch(
 ) error {
 	_, err := FetchResult(client, request, arc, cfg)
 	return err
+}
+
+// dbKeyToFilename converts a db_key to a filename.
+// Example: "inventory/switches" -> "inventory.switches.json"
+// Returns empty string if dbKey is empty.
+func dbKeyToFilename(dbKey string) string {
+	if dbKey == "" {
+		return ""
+	}
+	return strings.ReplaceAll(dbKey, "/", ".") + ".json"
 }
 
 // urlToFilename converts a URL path to a filename

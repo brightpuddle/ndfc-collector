@@ -1,0 +1,23 @@
+# NDFC API requests - single source of truth for both ndfc-collector and ndfc-vetr.
+#
+# Fields:
+#   url:        API endpoint path (after /appcenter/cisco/ndfc/api/v1/).
+#               May contain {placeholder} names resolved from a parent response.
+#   db_key:     Canonical storage key prefix used for:
+#                 - collector file naming (slashes replaced with dots, e.g. inventory.switches.json)
+#                 - buntDB key prefix in vetr (e.g. inventory/switches:{id})
+#               For parameterised requests the placeholder is filled at runtime,
+#               e.g. fabrics/{fabricName}/switches -> fabrics.dc1.switches.json
+#   list_path:  dot-notation path into the JSON response that contains the array
+#               of items to store. Empty string means the root is a single object.
+#   id_field:   JSON field name within each item used as the unique row identifier.
+#   depends_on: (optional) map of {placeholder: {url: <parent_url>, key: <json_field>}}
+#               for requests whose URL contains substitution variables resolved
+#               from a parent response.
+#   query:      (optional) map of query string parameters to include in the request.
+
+requests:
+  - url: /manage/inventory/switches
+    db_key: inventory/switches
+    list_path: switches
+    id_field: switchId

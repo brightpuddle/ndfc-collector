@@ -24,10 +24,7 @@ BASE_URL = "/appcenter/cisco/ndfc/api/v1"
 # name to {"url": <parent_url_template>, "key": <json_field_name>}.
 # Generated from pkg/req/requests.go - do not edit the list below manually.
 REQUESTS = [
-    ("/lan-fabric/rest/control/fabrics", None),
-    ("/fm/about/version", None),
-    ("/lan-fabric/rest/control/switches/overview", None),
-    ("/lan-fabric/rest/control/fabrics/{fabricName}/inventory/switchesByFabric", {"fabricName": {"url": "/lan-fabric/rest/control/fabrics", "key": "fabricName"}}),
+    ("/manage/inventory/switches", None),
 ]
 
 class NDFCClient:
