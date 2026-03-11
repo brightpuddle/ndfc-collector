@@ -21,3 +21,8 @@ requests:
     db_key: inventory/switches
     list_path: switches
     id_field: switchId
+
+  - url: /systemResources/nodes/hardware
+    db_key: systemResources/nodes/hardware
+    list_path: nodes
+    id_field: nodeName
