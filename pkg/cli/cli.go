@@ -73,8 +73,8 @@ func FetchResult(
 	arc archive.Writer,
 	cfg *config.Config,
 ) (gjson.Result, error) {
-	// Construct full path
-	fullPath := requests.BaseURL + request.URL
+	// Request URLs are stored as full host-relative paths derived from the OpenAPI specs.
+	fullPath := request.URL
 	startTime := time.Now()
 
 	logger := log.New()

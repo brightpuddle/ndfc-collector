@@ -25,7 +25,7 @@ type Dependency struct {
 
 // Request is an HTTP request.
 type Request struct {
-	URL       string                // API endpoint URL (after /appcenter/cisco/ndfc/api/v1/, may contain {placeholder} patterns)
+	URL       string                // Full host-relative API endpoint URL from the OpenAPI spec; may contain {placeholder} patterns
 	Query     map[string]string     // Query parameters
 	DependsOn map[string]Dependency // maps each URL {placeholder} name to the parent request and JSON key that supplies its value
 	// Storage metadata (used by vetr for ingestion; ignored by collector HTTP logic)
@@ -33,8 +33,6 @@ type Request struct {
 	ListPath  string `yaml:"list_path"` // dot-notation path to the item array in the response
 	IDField   string `yaml:"id_field"`  // JSON field used as the unique row identifier
 }
-
-const BaseURL = "/api/v1"
 
 //go:embed requests.yaml
 var requestsYAML []byte

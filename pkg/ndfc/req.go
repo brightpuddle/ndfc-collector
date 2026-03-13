@@ -52,7 +52,7 @@ func NoRefresh(req *Req) {
 
 // Query sets an HTTP query parameter.
 //
-//	client.Get("/appcenter/cisco/ndfc/api/v1/lan-fabric/rest/control/fabrics", ndfc.Query("filter", "value"))
+//	client.Get("/api/v1/manage/fabrics", ndfc.Query("filter", "value"))
 func Query(k, v string) func(req *Req) {
 	return func(req *Req) {
 		q := req.HTTPReq.URL.Query()

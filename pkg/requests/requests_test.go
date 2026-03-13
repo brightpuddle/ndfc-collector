@@ -55,7 +55,3 @@ func TestDependentRequests(t *testing.T) {
 		}
 	}
 }
-
-func TestBaseURL(t *testing.T) {
-	assert.NotEmpty(t, BaseURL)
-}

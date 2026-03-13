@@ -38,6 +38,18 @@ func TestSubstituteURL_MissingKey_LeftUnchanged(t *testing.T) {
 	assert.Equal(t, "/fabrics/prod/switches/{serialNumber}/config", result)
 }
 
+func TestSubstituteQuery(t *testing.T) {
+	query := map[string]string{
+		"fabricName": "{fabricName}",
+		"static":     "value",
+	}
+	result := substituteQuery(query, map[string]string{"fabricName": "prod"})
+	assert.Equal(t, map[string]string{
+		"fabricName": "prod",
+		"static":     "value",
+	}, result)
+}
+
 // --- extractCtx ---
 
 func TestExtractCtx_MapsSpecifiedKeys(t *testing.T) {
@@ -132,6 +144,7 @@ func TestBuildLevels_OneDependency(t *testing.T) {
 			DependsOn: map[string]requests.Dependency{
 				"fabricName": {URL: "/fabrics", Key: "fabricName"},
 			},
+			Query: map[string]string{"fabricName": "{fabricName}"},
 		},
 	}
 	levels := buildLevels(reqs)
@@ -189,10 +202,11 @@ func TestBuildLevels_MultipleParents(t *testing.T) {
 // --- expandLevel ---
 
 func TestExpandLevel_RootRequest(t *testing.T) {
-	levelReqs := []requests.Request{{URL: "/fabrics"}}
+	levelReqs := []requests.Request{{URL: "/fabrics", Query: map[string]string{"limit": "10"}}}
 	expanded := expandLevel(levelReqs, map[string][]parentResult{})
 	assert.Len(t, expanded, 1)
 	assert.Equal(t, "/fabrics", expanded[0].url)
+	assert.Equal(t, "10", expanded[0].query["limit"])
 }
 
 func TestExpandLevel_DependentRequest_Array(t *testing.T) {
@@ -202,6 +216,7 @@ func TestExpandLevel_DependentRequest_Array(t *testing.T) {
 			DependsOn: map[string]requests.Dependency{
 				"fabricName": {URL: "/fabrics", Key: "fabricName"},
 			},
+			Query: map[string]string{"fabricName": "{fabricName}"},
 		},
 	}
 	parentResults := map[string][]parentResult{
@@ -221,6 +236,8 @@ func TestExpandLevel_DependentRequest_Array(t *testing.T) {
 	}
 	assert.Contains(t, urls, "/fabrics/f1/switches")
 	assert.Contains(t, urls, "/fabrics/f2/switches")
+	assert.Equal(t, "f1", expanded[0].query["fabricName"])
+	assert.Equal(t, "f2", expanded[1].query["fabricName"])
 }
 
 func TestExpandLevel_DependentRequest_Object(t *testing.T) {

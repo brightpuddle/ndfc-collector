@@ -1,7 +1,8 @@
 # NDFC API requests - single source of truth for both ndfc-collector and ndfc-vetr.
 #
 # Fields:
-#   url:        API endpoint path (after /appcenter/cisco/ndfc/api/v1/).
+#   url:        Full host-relative API endpoint path, derived from the OpenAPI
+#               schema's primary server URL plus the operation path.
 #               May contain {placeholder} names resolved from a parent response.
 #   db_key:     Canonical storage key prefix used for:
 #                 - collector file naming (slashes replaced with dots, e.g. inventory.switches.json)
@@ -14,38 +15,33 @@
 #   depends_on: (optional) map of {placeholder: {url: <parent_url>, key: <json_field>}}
 #               for requests whose URL contains substitution variables resolved
 #               from a parent response.
-#   query:      (optional) map of query string parameters to include in the request.
+#   query:      (optional) map of query string parameters to include in the
+#               request. Values may contain {placeholder} names resolved from a
+#               parent response.
 
 requests:
-  - url: /manage/inventory/switches
+  - url: /api/v1/manage/inventory/switches
     db_key: inventory/switches
     list_path: switches
     id_field: switchId
 
-  - url: /systemResources/nodes/hardware
+  - url: /api/v1/infra/systemResources/nodes/hardware
     db_key: systemResources/nodes/hardware
     list_path: nodes
     id_field: nodeName
 
-  - url: /manage/fabrics
+  - url: /api/v1/manage/fabrics
     db_key: manage/fabrics
     list_path: fabrics
     id_field: fabricName
 
-  - url: /manage/fabrics/{fabricName}/vrfs
+  - url: /api/v1/analyze/securitySegmentation/vrfs
     db_key: fabrics/{fabricName}/vrfs
     list_path: vrfs
-    id_field: vrfName
+    id_field: vrfDn
+    query:
+      fabricName: "{fabricName}"
     depends_on:
       fabricName:
-        url: /manage/fabrics
-        key: fabricName
-
-  - url: /manage/fabrics/{fabricName}/networks
-    db_key: fabrics/{fabricName}/networks
-    list_path: networks
-    id_field: networkName
-    depends_on:
-      fabricName:
-        url: /manage/fabrics
+        url: /api/v1/manage/fabrics
         key: fabricName

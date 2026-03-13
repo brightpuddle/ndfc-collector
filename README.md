@@ -29,29 +29,25 @@ The results of these queries are archived in a zip file to be shared with Cisco.
 Unlike traditional REST APIs, NDFC's API structure varies by endpoint, so each
 API response is stored as a separate JSON file named after its endpoint path.
 
-Some endpoints depend on data from other endpoints. For example, the per-fabric
-switch inventory endpoint requires a fabric name:
+Some endpoints depend on data from other endpoints. For example, the security
+segmentation VRF inventory request requires a fabric name supplied as a query
+parameter:
 
 ```
-/lan-fabric/rest/control/fabrics/{fabricName}/inventory/switchesByFabric
+/api/v1/analyze/securitySegmentation/vrfs?fabricName={fabricName}
 ```
 
 The collector automatically handles these **dependent queries**: it first
-fetches the parent endpoint (e.g. `/fabrics`), then issues one child request per
-item in the parent's response array. Each `{placeholder}` in the child URL is
-resolved using the `Dependency.Key` JSON field from the parent response item.
-This explicit key mapping allows the placeholder name in the URL to differ from
-the JSON field name in the parent response (e.g. `{fabricName}` resolved from
-a `"name"` field). Child requests run in parallel within their dependency level,
-so there is no unnecessary serialisation.
+fetches the parent endpoint (for example `/api/v1/manage/fabrics`), then issues
+one child request per item in the parent's response array. Each `{placeholder}`
+in the child URL or query string is resolved using the `Dependency.Key` JSON
+field from the parent response item. Child requests run in parallel within their
+dependency level, so there is no unnecessary serialisation.
 
-The following file can be referenced to see the API queries performed by this
-tool:
-
-<https://github.com/ciscotools/ndfc-collector/blob/main/pkg/req/requests.go>
-
-**Note** that this file is part of the CI/CD process for this tool, so is always
-up to date with the latest query data.
+The canonical query list lives in
+<https://github.com/ciscotools/ndfc-collector/blob/main/pkg/requests/requests.yaml>.
+Each request URL is a full host-relative path copied from the OpenAPI spec's
+`servers[0].url` + operation path.
 
 ## Safety/Security
 
@@ -247,7 +243,7 @@ go build -o collector ./cmd/ndfc-collector/*.go
 # Run tests
 go test ./...
 
-# Generate Python script (run after modifying requests.go)
+# Generate Python script (run after modifying requests.yaml)
 go generate ./...
 ```
 

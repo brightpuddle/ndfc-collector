@@ -92,7 +92,7 @@ func RequestTimeout(x time.Duration) func(*Client) {
 // Do makes a request.
 // Requests for Do are built outside of the client, e.g.
 //
-//	req := client.NewReq("GET", "/appcenter/cisco/ndfc/api/v1/lan-fabric/rest/control/fabrics", nil)
+//	req := client.NewReq("GET", "/api/v1/manage/fabrics", nil)
 //	res := client.Do(req)
 func (client *Client) Do(req Req) (Res, error) {
 	httpRes, err := client.HTTPClient.Do(req.HTTPReq)

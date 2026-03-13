@@ -14,36 +14,44 @@ endpoints.
 - `cmd/ndfc-collector/collect.go` - Dependency-aware collection engine
 - `pkg/ndfc/client.go` - HTTP client using session-based authentication
 - `pkg/cli/cli.go` - API fetching with retry logic (`Fetch` and `FetchResult`)
-- `pkg/req/requests.go` - Request definitions with dependency relationships
+- `pkg/requests/requests.yaml` - Canonical request definitions with dependency relationships
 - `pkg/archive/archive.go` - Thread-safe zip writer using mutex locks
 
 ## Critical Patterns
 
 ### Request Configuration
 
-All API queries are defined in [pkg/req/requests.go](pkg/req/requests.go). Each
-entry specifies:
+All API queries are defined in [`pkg/requests/requests.yaml`](pkg/requests/requests.yaml).
+Each entry specifies:
 
-- `URL`: NDFC API endpoint path (after `/appcenter/cisco/ndfc/api/v1/`). May
-  contain `{placeholder}` names for dependent queries.
-- `Query`: Optional query parameters.
+- `URL`: Full host-relative API path copied from the OpenAPI spec's
+  `servers[0].url` + operation `path`. It may contain `{placeholder}` names for
+  dependent queries.
+- `Query`: Optional query parameters. Values may also contain `{placeholder}`
+  names.
 - `DependsOn`: URL template of a parent request. When set, this request is
   executed once per item in the parent's response array, with `{placeholder}`
-  names in the URL substituted from matching JSON field names in each item.
+  names in the URL or query string substituted from matching JSON field names in
+  each item.
 
 Example of a dependent request:
 
-```go
-{
-    URL:       "/lan-fabric/rest/control/fabrics/{fabricName}/inventory/switchesByFabric",
-    DependsOn: "/lan-fabric/rest/control/fabrics",
-}
+```yaml
+- url: /api/v1/analyze/securitySegmentation/vrfs
+  db_key: fabrics/{fabricName}/vrfs
+  list_path: vrfs
+  id_field: vrfDn
+  query:
+    fabricName: "{fabricName}"
+  depends_on:
+    fabricName:
+      url: /api/v1/manage/fabrics
+      key: fabricName
 ```
 
-This produces one request per fabric returned by the `/fabrics` endpoint,
-e.g. `…/fabrics/MyFabric/inventory/switchesByFabric`.
+This produces one request per fabric returned by `/api/v1/manage/fabrics`.
 
-**When modifying queries:** Update `requests.go`, then run `go generate ./...`
+**When modifying queries:** Update `requests.yaml`, then run `go generate ./...`
 to regenerate the `ndfc_collector.py` Python script alternative.
 
 ### Concurrency & Batching
@@ -71,9 +79,9 @@ Dependent requests are only expanded after their parent level has completed,
 so ordering is guaranteed automatically.
 
 **File Naming:** NDFC responses are stored using filenames derived from the
-resolved URL path (placeholders already substituted). For example,
-`/lan-fabric/rest/control/fabrics/MyFabric/inventory/switchesByFabric` becomes
-`lan-fabric.rest.control.fabrics.MyFabric.inventory.switchesByFabric.json`.
+resolved `db_key` when present (for example `fabrics/{fabricName}/vrfs` becomes
+`fabrics.MyFabric.vrfs.json`). Requests without a `db_key` fall back to the
+resolved URL path.
 
 ### Authentication
 
@@ -98,7 +106,7 @@ go run ./cmd/ndfc-collector/*.go
 # Run tests
 go test ./...
 
-# Generate Python script (run after modifying requests.go)
+# Generate Python script (run after modifying requests.yaml)
 go generate ./...
 
 # Build release binaries (requires goreleaser)
@@ -172,7 +180,7 @@ NDFC passwords.
 
 4. **Dual collection methods:** Binary collector (this codebase) and Python
    script (`ndfc_collector.py`) must stay in sync. Always run
-   `go generate ./...` after modifying `requests.go`.
+   `go generate ./...` after modifying `requests.yaml`.
 
 5. **Dependent request expansion:** If a parent request returns no results
    (empty array or failed), its child requests produce no expanded requests and

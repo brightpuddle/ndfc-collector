@@ -20,6 +20,7 @@ type resolvedReq struct {
 	template    requests.Request  // original template (for child lookup)
 	url         string            // resolved URL (placeholders filled in)
 	resolvedKey string            // resolved db_key (placeholders filled in)
+	query       map[string]string // resolved query parameters
 	ctx         map[string]string // accumulated placeholder context from ancestor items
 }
 
@@ -42,6 +43,17 @@ func substituteURL(url string, ctx map[string]string) string {
 		}
 		return match
 	})
+}
+
+func substituteQuery(query map[string]string, ctx map[string]string) map[string]string {
+	if len(query) == 0 {
+		return nil
+	}
+	resolved := make(map[string]string, len(query))
+	for k, v := range query {
+		resolved[k] = substituteURL(v, ctx)
+	}
+	return resolved
 }
 
 // extractCtx returns a new context containing all entries from parent merged
@@ -147,6 +159,7 @@ func expandLevel(
 				template:    r,
 				url:         r.URL,
 				resolvedKey: r.DBKey,
+				query:       substituteQuery(r.Query, nil),
 				ctx:         map[string]string{},
 			})
 			continue
@@ -197,6 +210,7 @@ func expandLevel(
 				template:    r,
 				url:         substituteURL(r.URL, mergedCtx),
 				resolvedKey: substituteURL(r.DBKey, mergedCtx),
+				query:       substituteQuery(r.Query, mergedCtx),
 				ctx:         mergedCtx,
 			})
 		}
@@ -255,6 +269,7 @@ func collectFabric(
 					fetchReq := er.template
 					fetchReq.URL = er.url
 					fetchReq.DBKey = er.resolvedKey
+					fetchReq.Query = er.query
 
 					res, err := cli.FetchResult(client, fetchReq, arc, cfg)
 					if err != nil {
