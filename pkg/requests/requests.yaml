@@ -26,3 +26,26 @@ requests:
     db_key: systemResources/nodes/hardware
     list_path: nodes
     id_field: nodeName
+
+  - url: /manage/fabrics
+    db_key: manage/fabrics
+    list_path: fabrics
+    id_field: fabricName
+
+  - url: /manage/fabrics/{fabricName}/vrfs
+    db_key: fabrics/{fabricName}/vrfs
+    list_path: vrfs
+    id_field: vrfName
+    depends_on:
+      fabricName:
+        url: /manage/fabrics
+        key: fabricName
+
+  - url: /manage/fabrics/{fabricName}/networks
+    db_key: fabrics/{fabricName}/networks
+    list_path: networks
+    id_field: networkName
+    depends_on:
+      fabricName:
+        url: /manage/fabrics
+        key: fabricName
