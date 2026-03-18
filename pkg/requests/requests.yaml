@@ -35,12 +35,10 @@ requests:
     list_path: fabrics
     id_field: fabricName
 
-  - url: /api/v1/analyze/securitySegmentation/vrfs
+  - url: /appcenter/cisco/ndfc/api/v1/lan-fabric/rest/top-down/fabrics/{fabricName}/vrfs
     db_key: fabrics/{fabricName}/vrfs
-    list_path: vrfs
-    id_field: vrfDn
-    query:
-      fabricName: "{fabricName}"
+    list_path: "@this"
+    id_field: id
     depends_on:
       fabricName:
         url: /api/v1/manage/fabrics
