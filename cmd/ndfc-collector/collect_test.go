@@ -366,6 +366,39 @@ func TestExpandLevel_MultipleParentURLs_CartesianProduct(t *testing.T) {
 	assert.Contains(t, urls, "/report/f2/s1")
 }
 
+// --- extractListResult ---
+
+func TestExtractListResult_WrappedObject(t *testing.T) {
+	// Typical NDFC response: the array is inside a named wrapper key.
+	result := gjson.Parse(`{"fabrics":[{"fabricName":"f1"},{"fabricName":"f2"}]}`)
+	extracted := extractListResult(result, "fabrics")
+	assert.True(t, extracted.IsArray())
+	assert.Len(t, extracted.Array(), 2)
+	assert.Equal(t, "f1", extracted.Array()[0].Get("fabricName").String())
+}
+
+func TestExtractListResult_RootArray(t *testing.T) {
+	// list_path "@this": response is already a root array (e.g. the VRF endpoint).
+	result := gjson.Parse(`[{"id":1},{"id":2}]`)
+	extracted := extractListResult(result, "@this")
+	assert.True(t, extracted.IsArray())
+	assert.Len(t, extracted.Array(), 2)
+}
+
+func TestExtractListResult_EmptyPath(t *testing.T) {
+	// list_path "": single-object endpoint — return as-is.
+	result := gjson.Parse(`{"key":"value"}`)
+	extracted := extractListResult(result, "")
+	assert.Equal(t, result.Raw, extracted.Raw)
+}
+
+func TestExtractListResult_MissingPath(t *testing.T) {
+	// list_path points to a non-existent key — return the original result unchanged.
+	result := gjson.Parse(`{"other":"value"}`)
+	extracted := extractListResult(result, "nothere")
+	assert.Equal(t, result.Raw, extracted.Raw)
+}
+
 // helpers
 
 func urlsFromLevel(level []requests.Request) []string {

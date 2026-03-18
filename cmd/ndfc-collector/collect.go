@@ -219,6 +219,23 @@ func expandLevel(
 	return expanded
 }
 
+// extractListResult extracts the list items from a parent API response using
+// the list_path declared in requests.yaml. When an endpoint wraps its array in
+// an object (e.g. {"fabrics": [...]}, list_path "fabrics"), this returns the
+// inner array so that expandLevel can iterate over the individual items and
+// fill {placeholder} substitutions for child requests.
+// list_path "" (single object) and "@this" (already a root array) are returned
+// unchanged.
+func extractListResult(result gjson.Result, listPath string) gjson.Result {
+	if listPath == "" || listPath == "@this" {
+		return result
+	}
+	if extracted := result.Get(listPath); extracted.IsArray() {
+		return extracted
+	}
+	return result
+}
+
 // collectFabric executes all requests in topological dependency order.
 // Within each dependency level the expanded requests are batched and run
 // in parallel (up to cfg.BatchSize concurrent requests), preserving the
@@ -294,7 +311,7 @@ func collectFabric(
 		for _, lr := range levelResults {
 			allParentResults[lr.r.template.URL] = append(
 				allParentResults[lr.r.template.URL],
-				parentResult{ctx: lr.r.ctx, result: lr.res},
+				parentResult{ctx: lr.r.ctx, result: extractListResult(lr.res, lr.r.template.ListPath)},
 			)
 		}
 	}
