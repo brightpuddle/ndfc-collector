@@ -370,11 +370,12 @@ func TestExpandLevel_MultipleParentURLs_CartesianProduct(t *testing.T) {
 
 func TestExtractListResult_WrappedObject(t *testing.T) {
 	// Typical NDFC response: the array is inside a named wrapper key.
-	result := gjson.Parse(`{"fabrics":[{"fabricName":"f1"},{"fabricName":"f2"}]}`)
+	// The /api/v1/manage/fabrics endpoint uses "name" (not "fabricName") per the OpenAPI schema.
+	result := gjson.Parse(`{"fabrics":[{"name":"f1"},{"name":"f2"}]}`)
 	extracted := extractListResult(result, "fabrics")
 	assert.True(t, extracted.IsArray())
 	assert.Len(t, extracted.Array(), 2)
-	assert.Equal(t, "f1", extracted.Array()[0].Get("fabricName").String())
+	assert.Equal(t, "f1", extracted.Array()[0].Get("name").String())
 }
 
 func TestExtractListResult_RootArray(t *testing.T) {
@@ -397,6 +398,47 @@ func TestExtractListResult_MissingPath(t *testing.T) {
 	result := gjson.Parse(`{"other":"value"}`)
 	extracted := extractListResult(result, "nothere")
 	assert.Equal(t, result.Raw, extracted.Raw)
+}
+
+func TestExpandLevel_VRFPipeline_WrappedFabricsResponse(t *testing.T) {
+	// Full-pipeline integration test mirroring the production VRF request config.
+	// The /api/v1/manage/fabrics endpoint returns {"fabrics":[{"name":"..."},...]}
+	// and extractListResult unwraps it before it is stored as a parentResult.
+	// expandLevel must then substitute {fabricName} from the "name" JSON field.
+	levelReqs := []requests.Request{
+		{
+			URL:   "/appcenter/cisco/ndfc/api/v1/lan-fabric/rest/top-down/fabrics/{fabricName}/vrfs",
+			DBKey: "fabrics/{fabricName}/vrfs",
+			DependsOn: map[string]requests.Dependency{
+				"fabricName": {URL: "/api/v1/manage/fabrics", Key: "name"},
+			},
+		},
+	}
+
+	rawFabricsResponse := gjson.Parse(`{"fabrics":[{"name":"DC1-FABRIC"},{"name":"DC2-FABRIC"}]}`)
+	// Simulate what collectFabric does when storing level-0 results:
+	// extractListResult unwraps the array before saving.
+	unwrapped := extractListResult(rawFabricsResponse, "fabrics")
+
+	parentResults := map[string][]parentResult{
+		"/api/v1/manage/fabrics": {
+			{ctx: map[string]string{}, result: unwrapped},
+		},
+	}
+
+	expanded := expandLevel(levelReqs, parentResults)
+	assert.Len(t, expanded, 2)
+
+	urls := make([]string, len(expanded))
+	keys := make([]string, len(expanded))
+	for i, e := range expanded {
+		urls[i] = e.url
+		keys[i] = e.resolvedKey
+	}
+	assert.Contains(t, urls, "/appcenter/cisco/ndfc/api/v1/lan-fabric/rest/top-down/fabrics/DC1-FABRIC/vrfs")
+	assert.Contains(t, urls, "/appcenter/cisco/ndfc/api/v1/lan-fabric/rest/top-down/fabrics/DC2-FABRIC/vrfs")
+	assert.Contains(t, keys, "fabrics/DC1-FABRIC/vrfs")
+	assert.Contains(t, keys, "fabrics/DC2-FABRIC/vrfs")
 }
 
 // helpers

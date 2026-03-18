@@ -33,7 +33,7 @@ requests:
   - url: /api/v1/manage/fabrics
     db_key: manage/fabrics
     list_path: fabrics
-    id_field: fabricName
+    id_field: name
 
   - url: /appcenter/cisco/ndfc/api/v1/lan-fabric/rest/top-down/fabrics/{fabricName}/vrfs
     db_key: fabrics/{fabricName}/vrfs
@@ -42,4 +42,4 @@ requests:
     depends_on:
       fabricName:
         url: /api/v1/manage/fabrics
-        key: fabricName
+        key: name
