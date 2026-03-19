@@ -43,3 +43,8 @@ requests:
       fabricName:
         url: /api/v1/manage/fabrics
         key: name
+
+  - url: /appcenter/cisco/ndfc/api/v1/lan-fabric/rest/control/fabrics
+    db_key: lan-fabric/control/fabrics
+    list_path: "@this"
+    id_field: fabricName
