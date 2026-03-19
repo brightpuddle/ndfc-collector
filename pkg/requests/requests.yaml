@@ -57,3 +57,8 @@ requests:
       fabricName:
         url: /api/v1/manage/fabrics
         key: name
+
+  - url: /api/v1/infra/backups
+    db_key: infra/backups
+    list_path: backups
+    id_field: name
