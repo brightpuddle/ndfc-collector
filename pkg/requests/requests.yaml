@@ -62,3 +62,8 @@ requests:
     db_key: infra/backups
     list_path: backups
     id_field: name
+
+  - url: /api/v1/analyze/anomalies/summary
+    db_key: analyze/anomalies/summary
+    list_path: ""
+    id_field: ""
