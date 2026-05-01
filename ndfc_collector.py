@@ -42,14 +42,38 @@ REQUESTS = [
         "db_key": "manage/fabrics",
     },
     {
-        "url": "/api/v1/analyze/securitySegmentation/vrfs",
+        "url": "/appcenter/cisco/ndfc/api/v1/lan-fabric/rest/top-down/fabrics/{fabricName}/vrfs",
         "depends_on": {
-            "fabricName": {"url": "/api/v1/manage/fabrics", "key": "fabricName"}
+            "fabricName": {"url": "/api/v1/manage/fabrics", "key": "name"}
         },
-        "query": {
-            "fabricName": "{fabricName}"
-        },
+        "query": None,
         "db_key": "fabrics/{fabricName}/vrfs",
+    },
+    {
+        "url": "/appcenter/cisco/ndfc/api/v1/lan-fabric/rest/control/fabrics",
+        "depends_on": None,
+        "query": None,
+        "db_key": "lan-fabric/control/fabrics",
+    },
+    {
+        "url": "/appcenter/cisco/ndfc/api/v1/lan-fabric/rest/top-down/fabrics/{fabricName}/networks",
+        "depends_on": {
+            "fabricName": {"url": "/api/v1/manage/fabrics", "key": "name"}
+        },
+        "query": None,
+        "db_key": "fabrics/{fabricName}/networks",
+    },
+    {
+        "url": "/api/v1/infra/backups",
+        "depends_on": None,
+        "query": None,
+        "db_key": "infra/backups",
+    },
+    {
+        "url": "/api/v1/analyze/anomalies/summary",
+        "depends_on": None,
+        "query": None,
+        "db_key": "analyze/anomalies/summary",
     },
 ]
 
