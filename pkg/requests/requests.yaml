@@ -67,3 +67,61 @@ requests:
     db_key: analyze/anomalies/summary
     list_path: ""
     id_field: ""
+
+  - url: /api/v1/analyze/anomalies/groupedDetails
+    db_key: analyze/anomalies/groupedDetails
+    list_path: anomalies
+    id_field: anomalyDescription
+
+  - url: /api/v1/analyze/systemAnomalies/summary
+    db_key: analyze/systemAnomalies/summary
+    list_path: ""
+    id_field: ""
+
+  - url: /api/v1/infra/cluster/config
+    db_key: infra/cluster/config
+    list_path: ""
+    id_field: ""
+
+  - url: /api/v1/infra/intersight/connection
+    db_key: infra/intersight/connection
+    list_path: ""
+    id_field: ""
+
+  - url: /api/v1/infra/license/assignments
+    db_key: infra/license/assignments
+    list_path: assignments
+    id_field: switchKey
+
+  - url: /api/v1/manage/fabrics/{fabricName}/vpcPairs
+    db_key: fabrics/{fabricName}/vpcPairs
+    list_path: vpcPairs
+    id_field: domainId
+    depends_on:
+      fabricName:
+        url: /appcenter/cisco/ndfc/api/v1/lan-fabric/rest/control/fabrics
+        key: fabricName
+        filter:
+          field: fabricType
+          value: Switch_Fabric
+
+  - url: /appcenter/cisco/ndfc/api/v1/lan-fabric/rest/control/fabrics/msd/fabric-associations
+    db_key: lan-fabric/control/fabrics/msd/fabric-associations
+    list_path: "@this"
+    id_field: fabricName
+
+  - url: /api/v1/analyze/connectivity/routes/urib/vrfs/count
+    db_key: analyze/routes/urib/vrfs/count/{fabricName}
+    list_path: ""
+    id_field: ""
+    ignore_errors: true
+    depends_on:
+      fabricName:
+        url: /appcenter/cisco/ndfc/api/v1/lan-fabric/rest/control/fabrics
+        key: fabricName
+        filter:
+          field: fabricType
+          value: Switch_Fabric
+    query:
+      fabricName: "{fabricName}"
+      routeType: ipv4
