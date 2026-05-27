@@ -75,6 +75,61 @@ REQUESTS = [
         "query": None,
         "db_key": "analyze/anomalies/summary",
     },
+    {
+        "url": "/api/v1/analyze/anomalies/groupedDetails",
+        "depends_on": None,
+        "query": None,
+        "db_key": "analyze/anomalies/groupedDetails",
+    },
+    {
+        "url": "/api/v1/analyze/systemAnomalies/summary",
+        "depends_on": None,
+        "query": None,
+        "db_key": "analyze/systemAnomalies/summary",
+    },
+    {
+        "url": "/api/v1/infra/cluster/config",
+        "depends_on": None,
+        "query": None,
+        "db_key": "infra/cluster/config",
+    },
+    {
+        "url": "/api/v1/infra/intersight/connection",
+        "depends_on": None,
+        "query": None,
+        "db_key": "infra/intersight/connection",
+    },
+    {
+        "url": "/api/v1/infra/license/assignments",
+        "depends_on": None,
+        "query": None,
+        "db_key": "infra/license/assignments",
+    },
+    {
+        "url": "/api/v1/manage/fabrics/{fabricName}/vpcPairs",
+        "depends_on": {
+            "fabricName": {"url": "/appcenter/cisco/ndfc/api/v1/lan-fabric/rest/control/fabrics", "key": "fabricName"}
+        },
+        "query": None,
+        "db_key": "fabrics/{fabricName}/vpcPairs",
+    },
+    {
+        "url": "/appcenter/cisco/ndfc/api/v1/lan-fabric/rest/control/fabrics/msd/fabric-associations",
+        "depends_on": None,
+        "query": None,
+        "db_key": "lan-fabric/control/fabrics/msd/fabric-associations",
+    },
+    {
+        "url": "/api/v1/analyze/connectivity/routes/urib/vrfs/count",
+        "depends_on": {
+            "fabricName": {"url": "/appcenter/cisco/ndfc/api/v1/lan-fabric/rest/control/fabrics", "key": "fabricName"}
+        },
+        "query": {
+            "fabricName": "{fabricName}",
+            "routeType": "ipv4"
+        },
+        "db_key": "analyze/routes/urib/vrfs/count/{fabricName}",
+    },
 ]
 
 class NDFCClient:
