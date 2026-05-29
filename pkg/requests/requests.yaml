@@ -18,6 +18,7 @@
 #   query:      (optional) map of query string parameters to include in the
 #               request. Values may contain {placeholder} names resolved from a
 #               parent response.
+#               
 
 requests:
   - url: /api/v1/manage/inventory/switches
