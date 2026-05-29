@@ -119,17 +119,6 @@ REQUESTS = [
         "query": None,
         "db_key": "lan-fabric/control/fabrics/msd/fabric-associations",
     },
-    {
-        "url": "/api/v1/analyze/connectivity/routes/urib/vrfs/count",
-        "depends_on": {
-            "fabricName": {"url": "/appcenter/cisco/ndfc/api/v1/lan-fabric/rest/control/fabrics", "key": "fabricName"}
-        },
-        "query": {
-            "fabricName": "{fabricName}",
-            "routeType": "ipv4"
-        },
-        "db_key": "analyze/routes/urib/vrfs/count/{fabricName}",
-    },
 ]
 
 class NDFCClient:
