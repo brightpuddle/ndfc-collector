@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Cisco Systems, Inc. and their affiliates
+
 # NDFC Data Collector
 # This script collects data from Cisco NDFC for health check analysis
 # Generated from collector/pkg/requests/requests.yaml - do not edit manually
